@@ -1,50 +1,117 @@
 import streamlit as st
-import requests
-import pandas as pd
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
+from fpdf import FPDF
 
-# CONFIGURATION
-WEATHER_API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
+# --- ALL INDIA DATA ---
+INDIA_REGIONS = {
+    "Andhra Pradesh": ["Amaravati", "Visakhapatnam", "Vijayawada"],
+    "Arunachal Pradesh": ["Itanagar", "Tawang"],
+    "Assam": ["Dispur", "Guwahati"],
+    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bihta"],
+    "Chhattisgarh": ["Raipur", "Bhilai"],
+    "Goa": ["Panaji", "Margao"],
+    "Gujarat": ["Gandhinagar", "Ahmedabad"],
+    "Haryana": ["Chandigarh", "Gurugram"],
+    "Himachal Pradesh": ["Shimla", "Dharamshala"],
+    "Jharkhand": ["Ranchi", "Jamshedpur"],
+    "Karnataka": ["Bengaluru", "Mysuru"],
+    "Kerala": ["Thiruvananthapuram", "Kochi"],
+    "Madhya Pradesh": ["Bhopal", "Indore"],
+    "Maharashtra": ["Mumbai", "Pune"],
+    "Manipur": ["Imphal"],
+    "Meghalaya": ["Shillong"],
+    "Mizoram": ["Aizawl"],
+    "Nagaland": ["Kohima"],
+    "Odisha": ["Bhubaneswar", "Cuttack"],
+    "Punjab": ["Chandigarh", "Ludhiana"],
+    "Rajasthan": ["Jaipur", "Jodhpur"],
+    "Sikkim": ["Gangtok"],
+    "Tamil Nadu": ["Chennai", "Coimbatore"],
+    "Telangana": ["Hyderabad", "Warangal"],
+    "Tripura": ["Agartala"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi"],
+    "Uttarakhand": ["Dehradun", "Haridwar"],
+    "West Bengal": ["Kolkata", "Siliguri"],
+    "Andaman & Nicobar": ["Port Blair"],
+    "Chandigarh": ["Chandigarh City"],
+    "Dadra & Nagar Haveli": ["Silvassa"],
+    "Delhi": ["New Delhi", "North Delhi"],
+    "Jammu & Kashmir": ["Srinagar", "Jammu"],
+    "Ladakh": ["Leh", "Kargil"],
+    "Lakshadweep": ["Kavaratti"],
+    "Puducherry": ["Puducherry City"]
+}
 
-st.set_page_config(page_title="ASES - Kisan Sampark", layout="wide")
-
-# Sidebar for Navigation (Pre-setting for teammates)
-st.sidebar.title("🌾 ASES Ecosystem")
-page = st.sidebar.radio("Navigation", ["Kisan Sampark (Rentals)", "Knowledge Hub", "Others (Pending)"])
-
-if page == "Kisan Sampark (Rentals)":
-    st.title("🚜 Kisan Sampark: Smart Rental Hub")
-    user_city = st.text_input("Enter your nearest city:", "Patna")
+# --- PDF GENERATOR LOGIC ---
+def generate_pdf(name, crop, state, selected_schemes):
+    pdf = FPDF()
+    pdf.add_page()
     
-    if user_city:
-        # 1. Weather Logic
-        w_url = f"http://api.openweathermap.org/data/2.5/weather?q={user_city}&appid={WEATHER_API_KEY}&units=metric"
-        weather = requests.get(w_url).json()
-        
-        if weather.get("cod") == 200:
-            st.info(f"Current Weather in {user_city}: {weather['main']['temp']}°C, {weather['weather'][0]['description']}")
-            if "rain" in weather['weather'][0]['description'].lower():
-                st.warning("⚠️ High chance of rain. Renting machinery for harvesting is not advised today.")
+    # Branding
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(34, 139, 34) # Forest Green
+    pdf.cell(200, 10, "ASES: Agri-Smart Personalized Advisory", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Farmer Profile
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, f"Farmer Name: {name}", ln=True)
+    pdf.cell(0, 10, f"State: {state} | Targeted Crop: {crop}", ln=True)
+    pdf.ln(5)
+    pdf.line(10, 50, 200, 50)
+    
+    # Schemes Content
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "Selected Government Schemes & Benefits:", ln=True)
+    
+    pdf.set_font("Arial", '', 11)
+    for s in selected_schemes:
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(0, 10, f"• {s}", ln=True)
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, f"{SCHEME_DETAILS[s]}\n")
+        pdf.ln(2)
+    
+    pdf.ln(15)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.cell(0, 10, "Disclaimer: Data generated for educational purposes - IIT Patna Group 32", align='C')
+    return pdf.output(dest='S').encode('latin-1')
 
-        # 2. Rental Logic
-        df = pd.read_csv("machinery.csv")
-        st.subheader("Available Rentals Near You")
-        
-        for index, row in df.iterrows():
-            with st.container():
-                col1, col2 = st.columns([3, 1])
-                col1.write(f"**{row['Machinery']}** (Owner: {row['Owner']})")
-                
-                # Member 4 Special: Click-to-Call
-                phone_link = f'<a href="tel:{row["Phone"]}"><button style="background-color:#4CAF50;color:white;border:none;padding:8px 15px;border-radius:5px;">📞 Call Owner</button></a>'
-                col2.markdown(phone_link, unsafe_allow_html=True)
-                st.divider()
+# --- APP UI ---
+st.set_page_config(page_title="ASES All-India Hub", layout="wide")
+st.title("🇮🇳 Agri-Smart Ecosystem: Knowledge Hub")
 
-elif page == "Knowledge Hub":
-    st.title("📚 Knowledge Hub")
-    st.write("✅ PM-Kisan Samman Nidhi - [Check Eligibility]")
-    st.write("✅ Soil Health Card - [Download Guide]")
+# Inputs
+c1, c2, c3 = st.columns(3)
+with c1:
+    u_name = st.text_input("Farmer Name", "Aditi Dwivedi")
+with c2:
+    u_state = st.selectbox("State/UT", sorted(INDIA_REGIONS.keys()))
+with c3:
+    u_crop = st.text_input("Focus Crop", "Wheat")
 
+st.divider()
+
+# Multi-Scheme Selection
+st.subheader("Select All Relevant Schemes")
+all_scheme_names = list(SCHEME_DETAILS.keys())
+u_selections = st.multiselect("Choose as many as apply:", all_scheme_names, help="Select multiple schemes to include in your PDF report.")
+
+if u_selections:
+    # Preview
+    for s in u_selections:
+        with st.expander(f"📖 {s}"):
+            st.write(SCHEME_DETAILS[s])
+    
+    # Download Action
+    pdf_bytes = generate_pdf(u_name, u_crop, u_state, u_selections)
+    st.download_button(
+        label="📥 Download Personalized Multi-Scheme Guide",
+        data=pdf_bytes,
+        file_name=f"{u_name}_All_Schemes.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 else:
-    st.warning("This section is under development by other team members.")
+    st.info("Please select at least one scheme to generate the PDF report.")
