@@ -1,126 +1,146 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import requests
-import json
+import random
+import urllib.parse
 from fpdf import FPDF
-from streamlit_folium import st_folium
-import folium
-from streamlit_js_eval import get_geolocation
+import plotly.express as px
 
-# --- CONFIGURATION ---
-WEATHER_API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
+# --- 1. CONFIGURATION & STYLING ---
+st.set_page_config(page_title="Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# --- 1. DATA LOADERS ---
-def load_schemes():
-    # Load your provided schemes_db.json
-    try:
-        with open('schemes_db.json', 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+# Custom CSS for a professional look
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #2e7d32; color: white; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+    """, unsafe_allow_html=True)
 
+# --- 2. SHARED DATA REPOSITORIES ---
+
+# Machinery Data (Generating All India)
 def get_machinery_data():
-    # Mock database of machinery owners across India
-    return pd.DataFrame([
-        {"Machine": "Mahindra Tractor", "Owner": "Rajesh Kumar", "Phone": "9876543210", "Lat": 25.5941, "Lon": 85.1376, "City": "Patna"},
-        {"Machine": "John Deere Harvester", "Owner": "Suresh Singh", "Phone": "8877665544", "Lat": 30.9010, "Lon": 75.8573, "City": "Ludhiana"},
-        {"Machine": "Power Tiller", "Owner": "Amit Mahto", "Phone": "9900887766", "Lat": 23.3441, "Lon": 85.3096, "City": "Ranchi"},
-    ])
+    regions = {"Punjab": "Ludhiana", "Bihar": "Patna", "Maharashtra": "Pune", "UP": "Lucknow", "Tamil Nadu": "Chennai", "Haryana": "Karnal"}
+    machines = ["Tractor", "Harvester", "Rotavator", "Seed Drill"]
+    data = []
+    for state, city in regions.items():
+        for _ in range(5):
+            data.append([state, f"{random.choice(['Raj', 'Amit', 'Suman'])} Singh", random.choice(machines), city, f"+91{random.randint(7000000000, 9999999999)}"])
+    return pd.DataFrame(data, columns=["State", "Owner", "Machine", "Location", "Phone"])
 
-# --- 2. PDF GENERATOR ---
-def generate_pdf(name, crop, state, selected_schemes, db):
+# Schemes Data
+SCHEMES = [
+    {"Name": "PM-Kisan", "Limit": "All", "Benefit": "₹6,000/year", "Link": "https://pmkisan.gov.in/"},
+    {"Name": "KCC", "Limit": "Small", "Benefit": "Low-interest Credit", "Link": "https://pib.gov.in/"},
+    {"Name": "PKVY", "Limit": "Organic", "Benefit": "₹50,000/Ha Subsidy", "Link": "https://dmsouthwest.delhi.gov.in/"}
+]
+
+# Knowledge Hub Data
+df_seeds = pd.DataFrame({
+    "Crop": ["Wheat", "Rice", "Maize"],
+    "Variety": ["Kalyan Sona", "IR64", "HQPM-1"],
+    "Yield (q/ha)": ["45", "55", "65"]
+})
+
+# --- 3. PDF GENERATOR ---
+def create_pdf(title, df):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, "ASES: Personalized Farmer Advisory", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 10, f"Farmer Name: {name} | Crop: {crop}", ln=True)
-    pdf.cell(0, 10, f"Region: {state}", ln=True)
-    pdf.ln(5)
-    pdf.line(10, 45, 200, 45)
-    pdf.ln(10)
-    for s in selected_schemes:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, f"- {db[s]['name']}", ln=True)
-        pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 8, f"Benefit: {db[s]['desc']}\nLink: {db[s].get('link', 'N/A')}\n")
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
+    pdf.set_font("Arial", size=10)
+    for i, row in df.iterrows():
+        pdf.cell(200, 10, txt=f"{row.to_dict()}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- 3. MAIN APP INTERFACE ---
-st.set_page_config(page_title="ASES Group 32", layout="wide")
-st.sidebar.title("🌿 ASES Ecosystem")
-page = st.sidebar.selectbox("Navigation", ["🚜 Rental Hub (Live Location)", "📚 Knowledge Hub (All India)"])
+# --- 4. MAIN NAVIGATION ---
 
-# --- MODULE E: RENTAL HUB (WITH WEATHER & MAP) ---
-if page == "🚜 Rental Hub (Live Location)":
-    st.header("🚜 Kisan Sampark: Live Rental Hub")
+st.sidebar.title("🚜 Agri-Smart v1.0")
+menu = st.sidebar.radio("Navigate Ecosystem", 
+    ["Dashboard", "Machinery Rental", "Govt Schemes", "Knowledge Hub", "Agri Khata"])
+
+# --- MODULE: DASHBOARD (Weather & Quick Stats) ---
+if menu == "Dashboard":
+    st.title("🌾 Farmer Dashboard")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Current Temp", "32°C", "Sunny")
+    col2.metric("Soil Moisture", "45%", "-2%")
+    col3.metric("Market Price (Wheat)", "₹2,125/q", "+₹15")
     
-    # Live Location Detection
-    loc = get_geolocation()
-    if loc:
-        lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
-        
-        # Weather Integration
-        w_url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}&units=metric"
-        weather = requests.get(w_url).json()
-        
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            st.subheader("📍 Your Location")
-            m = folium.Map(location=[lat, lon], zoom_start=10)
-            folium.Marker([lat, lon], popup="Your Farm", icon=folium.Icon(color='green')).add_to(m)
-            st_folium(m, width=500, height=300)
-        
-        with col2:
-            st.subheader("☁️ Weather Advisory")
-            if weather.get("cod") == 200:
-                temp = weather['main']['temp']
-                desc = weather['weather'][0]['description']
-                st.metric("Temperature", f"{temp}°C")
-                st.info(f"Condition: {desc.capitalize()}")
-                if "rain" in desc.lower():
-                    st.warning("⚠️ Rain detected. Postpone heavy machine rentals to prevent soil compaction.")
-            else:
-                st.error("Weather data unavailable.")
+    st.subheader("Seasonal Tasks")
+    st.info("🕒 It is time for Urea top-dressing in Wheat crops. Ensure soil is moist.")
 
-    # Machinery List
+# --- MODULE: MACHINERY RENTAL ---
+elif menu == "Machinery Rental":
+    st.title("🚜 Smart Rental Hub")
+    df_m = get_machinery_data()
+    state = st.selectbox("Select State", df_m['State'].unique())
+    machine = st.selectbox("Select Machine", df_m['Machine'].unique())
+    
+    filtered = df_m[(df_m['State'] == state) & (df_m['Machine'] == machine)]
+    
+    for _, row in filtered.iterrows():
+        with st.container():
+            c1, c2 = st.columns([2, 1])
+            c1.write(f"**Owner:** {row['Owner']} | **Location:** {row['Location']}")
+            
+            # One-Tap Call
+            c2.markdown(f'<a href="tel:{row["Phone"]}" style="text-decoration:none; display:block; background:#1b5e20; color:white; text-align:center; padding:5px; border-radius:5px;">📞 Call</a>', unsafe_allow_html=True)
+            
+            # WhatsApp
+            msg = urllib.parse.quote(f"Hi {row['Owner']}, interested in renting your {row['Machine']}.")
+            wa_link = f"https://wa.me/{row['Phone'].replace('+', '')}?text={msg}"
+            c2.markdown(f'<a href="{wa_link}" target="_blank" style="text-decoration:none; display:block; background:#25D366; color:white; text-align:center; padding:5px; border-radius:5px; margin-top:5px;">💬 WhatsApp</a>', unsafe_allow_html=True)
+            st.divider()
+
+# --- MODULE: GOVT SCHEMES & SUBSIDY ---
+elif menu == "Govt Schemes":
+    st.title("🏛️ Govt. Support Center")
+    land = st.number_input("Enter Land Size (Hectares)", 0.1, 50.0, 1.0)
+    
+    st.subheader("Eligible Schemes")
+    for s in SCHEMES:
+        with st.expander(f"✨ {s['Name']}"):
+            st.write(f"**Benefit:** {s['Benefit']}")
+            st.markdown(f"[Apply Here]({s['Link']})")
+    
     st.divider()
-    df_rent = get_machinery_data()
-    st.subheader("🛠️ Nearby Machinery Owners")
-    for i, row in df_rent.iterrows():
-        with st.container(border=True):
-            c1, c2, c3 = st.columns([2, 2, 1])
-            c1.write(f"**{row['Machine']}**")
-            c2.write(f"📍 {row['City']} | Owner: {row['Owner']}")
-            call_html = f'<a href="tel:{row["Phone"]}"><button style="background-color:#28a745;color:white;border:none;padding:10px;border-radius:5px;width:100%;">📞 Call</button></a>'
-            c3.markdown(call_html, unsafe_allow_html=True)
+    st.subheader("Subsidy Estimator")
+    st.write(f"Potential Credit (KCC): **₹{land * 75000:,.0f}**")
+    st.write(f"Direct Income Support: **₹6,000/year**")
 
-# --- MODULE F: KNOWLEDGE HUB (TABULAR) ---
-elif page == "📚 Knowledge Hub (All India)":
-    st.header("📚 Knowledge Hub: Personalized Advisory")
+# --- MODULE: KNOWLEDGE HUB ---
+elif menu == "Knowledge Hub":
+    st.title("📚 Knowledge Hub")
+    tab1, tab2 = st.tabs(["Seed Varieties", "Fertilizer Charts"])
     
-    db = load_schemes()
-    states = sorted(list(db.keys()))
-    
-    col_in, col_view = st.columns([1, 2])
-    
-    with col_in:
-        u_name = st.text_input("Farmer Name", "Aditi Dwivedi")
-        u_crop = st.text_input("Target Crop", "Wheat")
-        u_state = st.selectbox("Select State/UT", states)
-        u_selections = st.multiselect("Select Schemes to include in PDF", states)
+    with tab1:
+        st.table(df_seeds)
+        if st.button("Download Seed PDF"):
+            pdf_bytes = create_pdf("Seed Varieties", df_seeds)
+            st.download_button("Click to Download", pdf_bytes, "seeds.pdf")
 
-    with col_view:
-        st.subheader(f"📋 Scheme Details for {u_state}")
-        # Table View
-        current_data = db.get(u_state, {})
-        df_display = pd.DataFrame([current_data])
-        st.table(df_display[['name', 'desc']])
-        st.link_button("🌐 Official Portal", current_data.get('link', '#'), use_container_width=True)
-        
-        st.divider()
-        if u_selections:
-            st.write(f"### Generate PDF for {u_name}")
-            pdf_bytes = generate_pdf(u_name, u_crop, u_state, u_selections, db)
-            st.download_button("📥 Download Personalized Guide", pdf_bytes, f"{u_name}_Report.pdf", use_container_width=True)
+    with tab2:
+        df_fert = pd.DataFrame({"Crop": ["Wheat", "Rice"], "N": [120, 100], "P": [60, 60], "K": [40, 40]})
+        st.bar_chart(df_fert.set_index("Crop"))
+        if st.button("Download Fertilizer PDF"):
+            pdf_bytes = create_pdf("Fertilizer Dosage", df_fert)
+            st.download_button("Click to Download", pdf_bytes, "fertilizer.pdf")
+
+# --- MODULE: AGRI KHATA ---
+elif menu == "Agri Khata":
+    st.title("📒 Agri Khata (Expense Tracker)")
+    if 'expenses' not in st.session_state:
+        st.session_state.expenses = pd.DataFrame([{"Cat": "Seed", "Amt": 500}])
+    
+    with st.form("Add Expense"):
+        cat = st.selectbox("Category", ["Seed", "Fuel", "Labour", "Water"])
+        amt = st.number_input("Amount", 0)
+        if st.form_submit_button("Log Expense"):
+            st.session_state.expenses = pd.concat([st.session_state.expenses, pd.DataFrame([{"Cat": cat, "Amt": amt}])])
+    
+    fig = px.pie(st.session_state.expenses, values='Amt', names='Cat', title="Spending Distribution")
+    st.plotly_chart(fig)
