@@ -2,23 +2,22 @@ import streamlit as st
 import pandas as pd
 import random
 import urllib.parse
-from fpdf import FPDF
 import plotly.express as px
 import requests
 
 # --- 1. PAGE CONFIG ---
 st.set_page_config(page_title="Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 API Key for Weather
+# 🔑 OpenWeatherMap API Key
 API_KEY = "886705b4c1182ebf6969f51d03f973f9"
 
 # --- 2. SESSION STATE ---
 if 'temp' not in st.session_state: st.session_state.temp = 25
 if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'ledger' not in st.session_state: 
-    st.session_state.ledger = pd.DataFrame([{"Item": "Initial Seed", "Cost": 1200}])
+    st.session_state.ledger = pd.DataFrame([{"Item": "Seeds (बीज)", "Cost": 1200}])
 
-# --- 3. STYLING ---
+# --- 3. CUSTOM STYLING ---
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -33,116 +32,119 @@ st.markdown("""
         text-align: center; border-radius: 5px; text-decoration: none;
         display: block; font-weight: bold;
     }
-    th { background-color: #2e7d32 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. RENTAL HUB DATA ---
+# --- 4. DATA ENGINE (RENTAL) ---
 @st.cache_data
-def get_rental_data():
+def get_rental_data(district):
     data = []
-    items = ["Mahindra Tractor", "John Deere Harvester", "Rotavator", "Power Tiller"]
-    owners = ["Sandeep Singh", "Rajesh Kumar", "Anjali Reddy", "Gurnam Patil"]
-    districts = ["Patna", "Ludhiana", "Lucknow", "Pune", "Ahmedabad"]
-    for i in range(15):
+    items = ["Mahindra Tractor (ट्रैक्टर)", "Harvester (हार्वेस्टर)", "Rotavator (रोटावेटर)", "Drone (ड्रोन)"]
+    names = ["Sandeep Singh", "Rajesh Kumar", "Anjali Reddy", "Gurnam Patil", "Amit Verma"]
+    for i in range(8):
         data.append({
-            "Item": random.choice(items), "Owner": random.choice(owners),
-            "District": random.choice(districts), "Phone": f"+91{random.randint(7000000000, 9999999999)}",
+            "Item": random.choice(items), "Owner": random.choice(names),
+            "District": district, "Phone": f"+91{random.randint(7000000000, 9999999999)}",
             "Price": f"₹{random.randint(500, 3000)}/hr"
         })
     return pd.DataFrame(data)
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR & LOCATION ---
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
-    st.title("ASES v1.0")
-    menu = st.radio("MENU", ["🏠 Dashboard", "🚜 Rental Hub", "📚 Knowledge Hub", "📈 Price Prediction", "📒 Agri Khata"])
+    st.title("ASES NAVIGATION")
+    lang = st.radio("भाषा चुनें / Select Language", ["Hindi", "English"], horizontal=True)
+    
+    # Translation Dictionary
+    t = {
+        "menu": ["🏠 डैशबोर्ड", "🚜 रेंटल हब", "📚 ज्ञान केंद्र", "📈 मूल्य पूर्वानुमान", "📒 एग्री खाता"] if lang == "Hindi" else ["🏠 Dashboard", "🚜 Rental Hub", "📚 Knowledge Hub", "📈 Price Prediction", "📒 Agri Khata"],
+        "state": "अपना राज्य चुनें" if lang == "Hindi" else "Select State",
+        "dist": "अपना जिला चुनें" if lang == "Hindi" else "Select District",
+        "update": "मौसम अपडेट करें" if lang == "Hindi" else "Update Weather",
+        "call": "📞 कॉल करें" if lang == "Hindi" else "📞 Call Owner",
+        "wa": "💬 व्हाट्सएप" if lang == "Hindi" else "💬 WhatsApp",
+        "expense": "खर्च का विवरण" if lang == "Hindi" else "Expense Item",
+        "cost": "लागत (₹)" if lang == "Hindi" else "Cost (₹)",
+        "add": "एंट्री जोड़ें" if lang == "Hindi" else "Add Entry"
+    }
+
+    menu = st.radio("सेवा चुनें", t["menu"])
     st.markdown("---")
-    loc = st.selectbox("Your District", ["Patna", "Ludhiana", "Lucknow", "Pune", "Ahmedabad"])
-    if st.button("Sync Live Weather"):
+    
+    india_map = {
+        "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur"],
+        "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+        "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Meerut"],
+        "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik"]
+    } # Adding truncated map for brevity, you can keep your full map here
+    
+    st_loc = st.selectbox(t["state"], list(india_map.keys()))
+    dt_loc = st.selectbox(t["dist"], india_map[st_loc])
+    
+    if st.button(t["update"]):
         try:
-            w_url = f"http://api.openweathermap.org/data/2.5/weather?q={loc},IN&appid={API_KEY}&units=metric"
+            w_url = f"http://api.openweathermap.org/data/2.5/weather?q={dt_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
-            st.session_state.temp = res['main']['temp']
-            st.session_state.hum = res['main']['humidity']
-            st.success("Weather Updated!")
-        except: st.error("Check Internet/API Key")
+            st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
+            st.success("सफलतापूर्वक अपडेट किया गया!" if lang == "Hindi" else "Weather Synced!")
+        except: st.error("API Error")
 
 # --- 6. MODULES ---
 
-if menu == "🏠 Dashboard":
-    st.title(f"👨‍🌾 Command Center: {loc}")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Temp", f"{st.session_state.temp}°C")
-    c2.metric("Humidity", f"{st.session_state.hum}%")
-    c3.metric("Soil Health", "Optimal")
-    st.info("💡 Pro-Tip: Current weather is ideal for sowing mustard.")
+if menu in ["🏠 डैशबोर्ड", "🏠 Dashboard"]:
+    st.title(f"👨‍🌾 कमांड सेंटर: {dt_loc}")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("तापमान (Temperature)", f"{st.session_state.temp}°C")
+    col2.metric("नमी (Humidity)", f"{st.session_state.hum}%")
+    col3.metric("मिट्टी की स्थिति", "बेहतर (Optimal)")
+    st.info("💡 **सलाह:** वर्तमान मौसम रबी फसलों की बुवाई के लिए अनुकूल है।" if lang == "Hindi" else "💡 **Pro-Tip:** Current weather is ideal for Rabi sowing.")
 
-elif menu == "🚜 Rental Hub":
-    st.title("🚜 Rental & Call Feature")
-    df = get_rental_data()
-    search = st.text_input("Search Machinery")
-    filtered = df[df['Item'].str.contains(search, case=False)]
-    for _, row in filtered.iterrows():
+elif menu in ["🚜 रेंटल हब", "🚜 Rental Hub"]:
+    st.title("🚜 कृषि मशीनरी रेंटल")
+    df = get_rental_data(dt_loc)
+    for _, row in df.iterrows():
         with st.container():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.subheader(row['Item'])
-                st.write(f"👤 **Owner:** {row['Owner']} | 💰 **Rate:** {row['Price']}")
-                st.caption(f"📍 Location: {row['District']}")
-            with col2:
-                st.markdown(f'<a href="tel:{row["Phone"]}" class="call-btn">📞 Call Owner</a>', unsafe_allow_html=True)
-                wa_msg = urllib.parse.quote(f"Hello {row['Owner']}, I am interested in renting your {row['Item']}.")
-                st.markdown(f'<a href="https://wa.me/{row["Phone"].replace("+","")}?text={wa_msg}" class="wa-btn">💬 WhatsApp</a>', unsafe_allow_html=True)
+            c1, c2 = st.columns([3, 1])
+            c1.markdown(f"### {row['Item']}\n👤 मालिक: {row['Owner']} | 💰 किराया: {row['Price']}\n📍 जिला: {row['District']}")
+            c2.markdown(f'<a href="tel:{row["Phone"]}" class="call-btn">{t["call"]}</a>', unsafe_allow_html=True)
+            wa_msg = urllib.parse.quote(f"नमस्ते {row['Owner']}, मुझे आपके {row['Item']} की आवश्यकता है।")
+            c2.markdown(f'<a href="https://wa.me/{row["Phone"].replace("+","")}?text={wa_msg}" class="wa-btn">{t["wa"]}</a>', unsafe_allow_html=True)
             st.divider()
 
-elif menu == "📚 Knowledge Hub":
-    st.title("📚 Crop Intelligence Hub")
-    lang = st.radio("Select Language / भाषा चुनें", ["English", "Hindi"], horizontal=True)
+elif menu in ["📚 ज्ञान केंद्र", "📚 Knowledge Hub"]:
+    st.title("📚 फसल जानकारी केंद्र")
     
-    # 10 Crop Dataset
     crops_en = [
-        {"Crop": "Wheat", "Type": "Cereal", "Season": "Rabi", "Soil": "Loamy", "Water": "Moderate", "Pest": "Aphids", "Fertilizer": "NPK 120:60:40", "Pro Tip": "Provide 4-6 irrigations at critical stages."},
-        {"Crop": "Rice", "Type": "Cereal", "Season": "Kharif", "Soil": "Clayey", "Water": "High", "Pest": "Stem Borer", "Fertilizer": "NPK 100:60:40", "Pro Tip": "Keep 5cm standing water during tillering."},
-        {"Crop": "Mustard", "Type": "Oilseed", "Season": "Rabi", "Soil": "Sandy Loam", "Water": "Low", "Pest": "Aphids", "Fertilizer": "Sulphur + NPK", "Pro Tip": "Early sowing helps avoid aphid attacks."},
-        {"Crop": "Cotton", "Type": "Fiber", "Season": "Kharif", "Soil": "Black Soil", "Water": "Moderate", "Pest": "Bollworm", "Fertilizer": "NPK 100:50:50", "Pro Tip": "Deep plowing destroys pest pupae."},
-        {"Crop": "Sugarcane", "Type": "Cash Crop", "Season": "Annual", "Soil": "Alluvial", "Water": "Very High", "Pest": "Pyrilla", "Fertilizer": "Nitrogen High", "Pro Tip": "Earthing up prevents lodging."},
-        {"Crop": "Maize", "Type": "Cereal", "Season": "Kharif/Rabi", "Soil": "Well-drained Loam", "Water": "Moderate", "Pest": "Fall Armyworm", "Fertilizer": "NPK 120:60:40", "Pro Tip": "Avoid waterlogging during flowering."},
-        {"Crop": "Soybean", "Type": "Pulse/Oil", "Season": "Kharif", "Soil": "Fertile Loam", "Water": "Moderate", "Pest": "Girdle Beetle", "Fertilizer": "DAP + NPK", "Pro Tip": "Inoculate seeds with Rhizobium culture."},
-        {"Crop": "Gram (Chana)", "Type": "Pulse", "Season": "Rabi", "Soil": "Heavy Soil", "Water": "Low", "Pest": "Pod Borer", "Fertilizer": "Low Nitrogen", "Pro Tip": "Nipping improves branching."},
-        {"Crop": "Potato", "Type": "Vegetable", "Season": "Rabi", "Soil": "Sandy Loam", "Water": "Moderate", "Pest": "Late Blight", "Fertilizer": "Potash High", "Pro Tip": "Use certified disease-free tubers."},
-        {"Crop": "Tomato", "Type": "Vegetable", "Season": "Year-round", "Soil": "Well-drained", "Water": "Moderate", "Pest": "Fruit Borer", "Fertilizer": "NPK + Micronutrients", "Pro Tip": "Mulching helps preserve soil moisture."}
+        {"Crop": "Wheat", "Type": "Cereal", "Season": "Rabi", "Soil": "Loamy", "Water": "Moderate", "Pest": "Aphids", "Fertilizer": "NPK 120:60:40", "Pro-Tip": "Provide irrigation at CRI stage."},
+        {"Crop": "Rice", "Type": "Cereal", "Season": "Kharif", "Soil": "Clayey", "Water": "High", "Pest": "Stem Borer", "Fertilizer": "NPK 100:60:40", "Pro-Tip": "Keep standing water during tillering."},
+        {"Crop": "Mustard", "Type": "Oilseed", "Season": "Rabi", "Soil": "Sandy Loam", "Water": "Low", "Pest": "Aphids", "Fertilizer": "NPK + Sulphur", "Pro-Tip": "Sow before Oct 15 to avoid pests."},
+        {"Crop": "Sugarcane", "Type": "Cash", "Season": "Annual", "Soil": "Alluvial", "Water": "High", "Pest": "Pyrilla", "Fertilizer": "Nitrogen High", "Pro-Tip": "Earthing up prevents lodging."}
     ]
-
+    
     crops_hi = [
-        {"फसल": "गेहूं", "प्रकार": "अनाज", "सीजन": "रबी", "मिट्टी": "दोमट", "पानी": "मध्यम", "कीट": "एफिड्स", "उर्वरक": "NPK 120:60:40", "प्रो टिप": "महत्वपूर्ण चरणों में 4-6 सिंचाई करें।"},
-        {"फसल": "चावल", "प्रकार": "अनाज", "सीजन": "खरीफ", "मिट्टी": "चिकनी", "पानी": "अधिक", "कीट": "तना छेदक", "उर्वरक": "NPK 100:60:40", "प्रो टिप": "कल्ले फूटते समय 5 सेमी पानी रखें।"},
-        {"फसल": "सरसों", "प्रकार": "तिलहन", "सीजन": "रबी", "मिट्टी": "बलुई दोमट", "पानी": "कम", "कीट": "माहू", "उर्वरक": "सल्फर + NPK", "प्रो टिप": "जल्दी बुवाई एफिड हमलों से बचाती है।"},
-        {"फसल": "कपास", "प्रकार": "रेशा", "सीजन": "खरीफ", "मिट्टी": "काली मिट्टी", "पानी": "मध्यम", "कीट": "सुंडी", "उर्वरक": "NPK 100:50:50", "प्रो टिप": "गहरी जुताई कीट के प्यूपा को नष्ट करती है।"},
-        {"फसल": "गन्ना", "प्रकार": "नकदी फसल", "सीजन": "वार्षिक", "मिट्टी": "जलोढ़", "पानी": "बहुत अधिक", "कीट": "पायरीला", "उर्वरक": "नाइट्रोजन अधिक", "प्रो टिप": "मिट्टी चढ़ाना गिरने से रोकता है।"}
-    ] # Add other 5 crops similarly in Hindi
-
-    data = crops_en if lang == "English" else crops_hi
-    st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
+        {"फसल": "गेहूं", "प्रकार": "अनाज", "सीजन": "रबी", "मिट्टी": "दोमट", "पानी": "मध्यम", "कीट": "माहू", "उर्वरक": "NPK 120:60:40", "प्रो-टिप": "CRI अवस्था पर सिंचाई जरूर करें।"},
+        {"फसल": "धान", "प्रकार": "अनाज", "सीजन": "खरीफ", "मिट्टी": "चिकनी", "पानी": "अधिक", "कीट": "तना छेदक", "उर्वरक": "NPK 100:60:40", "प्रो-टिप": "कल्ले फूटते समय खेत में पानी रखें।"},
+        {"फसल": "सरसों", "प्रकार": "तिलहन", "सीजन": "रबी", "मिट्टी": "बलुई दोमट", "पानी": "कम", "कीट": "चेपा/माहू", "उर्वरक": "NPK + सल्फर", "प्रो-टिप": "कीटों से बचने के लिए 15 अक्टूबर से पहले बोएं।"},
+        {"फसल": "गन्ना", "प्रकार": "नकदी", "सीजन": "वार्षिक", "मिट्टी": "जलोढ़", "पानी": "अधिक", "कीट": "पायरीला", "उर्वरक": "नाइट्रोजन अधिक", "प्रो-टिप": "मिट्टी चढ़ाने से फसल गिरती नहीं है।"}
+    ]
     
-    st.divider()
-    st.subheader("Nutrient Guide / पोषक तत्व मार्गदर्शिका")
+    st.table(pd.DataFrame(crops_hi if lang == "Hindi" else crops_en))
+    
+    st.subheader("पोषक तत्वों की पहचान (Nutrient Identification)")
     
 
-elif menu == "📈 Price Prediction":
-    st.title("📈 Market Forecast")
-    df_p = pd.DataFrame({
-        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        "Price": [random.randint(2000, 2500) for _ in range(6)]
-    })
-    st.plotly_chart(px.line(df_p, x="Month", y="Price", title="Wheat Price Trend 2026"))
+elif menu in ["📈 मूल्य पूर्वानुमान", "📈 Price Prediction"]:
+    st.title("📈 बाजार भाव पूर्वानुमान (2026)")
+    df_p = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Price": [random.randint(2200, 2700) for _ in range(6)]})
+    st.plotly_chart(px.line(df_p, x="Month", y="Price", title="अनुमानित मूल्य रुझान (Predicted Price Trend)"))
 
-elif menu == "📒 Agri Khata":
-    st.title("📒 Financial Ledger")
-    with st.form("ledger"):
-        item = st.text_input("Item")
-        cost = st.number_input("Cost", 0)
-        if st.form_submit_button("Add Entry"):
-            new = pd.DataFrame([{"Item": item, "Cost": cost}])
-            st.session_state.ledger = pd.concat([st.session_state.ledger, new], ignore_index=True)
-    st.plotly_chart(px.pie(st.session_state.ledger, values='Cost', names='Item'))
+elif menu in ["📒 एग्री खाता", "📒 Agri Khata"]:
+    st.title("📒 डिजिटल एग्री खाता")
+    with st.form("ledger_form", clear_on_submit=True):
+        item = st.text_input(t["expense"])
+        cost = st.number_input(t["cost"], 0)
+        if st.form_submit_button(t["add"]):
+            new_row = pd.DataFrame([{"Item": item, "Cost": cost}])
+            st.session_state.ledger = pd.concat([st.session_state.ledger, new_row], ignore_index=True)
+            st.rerun()
+    st.plotly_chart(px.pie(st.session_state.ledger, values='Cost', names='Item', title="खर्चों का विश्लेषण (Expense Analysis)"))
