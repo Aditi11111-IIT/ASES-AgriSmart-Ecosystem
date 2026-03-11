@@ -74,7 +74,6 @@ if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
 # --- 4. NAVIGATION & SIDEBAR ---
-# Load states for the selectbox from your schemes_db
 state_list = list(get_state_schemes().keys())
 
 with st.sidebar:
@@ -152,7 +151,7 @@ elif tab == "📚 Knowledge Hub":
         filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()]
         for item in filtered:
             with st.expander(f"📖 {item['Crop']} - Detailed Guidelines", expanded=True):
-                st.write(f"**Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
+                st.write(f"**Type:** {item['Type']} | **Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
                 st.write(f"**Soil:** {item['Soil']} | **Water:** {item['Water']}")
                 st.info(f"💡 {item['Pro-Tip']}")
     st.markdown("---")
@@ -160,52 +159,52 @@ elif tab == "📚 Knowledge Hub":
 
 elif tab == "🏛️ Govt Schemes":
     st.title("🏛️ Agricultural Welfare & Registration Portal")
-    
-    # --- Instructions Section ---
     with st.expander("📖 How to use this Portal", expanded=True):
         st.write("""
         1. **Select Category:** Choose between 'State-Specific' or 'Central Govt' schemes.
         2. **Update Location:** If you don't see your state, change it in the **Sidebar** on the left.
-        3. **Register:** Click the '🔗 Visit Official Portal' link to open the government registration page in a new tab.
+        3. **Register:** Click the '🔗 Visit Official Portal' link to open the registration page.
         """)
-
-    # Load data from modular file
     state_schemes = get_state_schemes()
     central_schemes = get_central_schemes()
-
     choice = st.radio("Select Scheme Type", ["State-Specific Schemes", "Central Govt Schemes"], horizontal=True)
-
     if choice == "State-Specific Schemes":
         st.subheader(f"📍 Active Schemes in {st_loc}")
         if st_loc in state_schemes:
             s = state_schemes[st_loc]
-            st.markdown(f"""
-                <div class="scheme-card">
-                    <h2>🌟 {s['name']}</h2>
-                    <p style="font-size:18px;">{s['desc']}</p>
-                    <a href="{s['link']}" target="_blank" style="color:#1976d2; font-weight:bold; font-size:20px;">
-                        🔗 Visit Official {st_loc} Registration Portal
-                    </a>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("No state-specific data found for the selected location.")
-
+            st.markdown(f"""<div class="scheme-card"><h2>🌟 {s['name']}</h2><p>{s['desc']}</p><a href="{s['link']}" target="_blank">🔗 Visit Official Portal</a></div>""", unsafe_allow_html=True)
     else:
         st.subheader("🇮🇳 Pan-India Central Government Schemes")
         for cs in central_schemes:
-            st.markdown(f"""
-                <div class="central-card">
-                    <h3>🏢 {cs['name']}</h3>
-                    <p>{cs['desc']}</p>
-                    <a href="{cs['link']}" target="_blank" style="color:#2e7d32; font-weight:bold;">🔗 Open Registration Portal</a>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="central-card"><h3>🏢 {cs['name']}</h3><p>{cs['desc']}</p><a href="{cs['link']}" target="_blank">🔗 Open Registration Portal</a></div>""", unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
-    st.title("📈 Market Price Forecasting")
+    st.title("📈 Market Price Forecast & Calculator")
+    
+    # --- Price Calculator Section ---
+    st.subheader("💰 Crop Value Calculator")
+    if all_crops:
+        crop_names = [c['Crop'] for c in all_crops]
+        col_c1, col_c2 = st.columns(2)
+        
+        with col_c1:
+            selected_crop = st.selectbox("Select Crop from Database", crop_names)
+            # Mock pricing logic based on crop type/name for the demo
+            # You can replace this with actual market rates
+            base_price = random.randint(2000, 6000) 
+            st.info(f"Current Market Rate for {selected_crop}: **₹{base_price} / Quintal**")
+            
+        with col_c2:
+            weight = st.number_input("Enter Quantity (Quintals)", min_value=0.0, value=10.0, step=0.5)
+            total_value = base_price * weight
+            st.success(f"Total Estimated Value: **₹{total_value:,.2f}**")
+    else:
+        st.warning("Crop database not loaded. Please check crop_master.py")
+
+    st.markdown("---")
+    st.subheader("📊 Market Trends")
     data_p = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr"], "Price": [2200, 2450, 2300, 2600]})
-    st.plotly_chart(px.line(data_p, x="Month", y="Price", title="Price Trend for Wheat (Sample)"))
+    st.plotly_chart(px.line(data_p, x="Month", y="Price", title=f"Sample Price Trend for {selected_crop if all_crops else 'Wheat'}"))
 
 elif tab == "📒 Agri Khata":
     st.title("📒 Financial Ledger")
