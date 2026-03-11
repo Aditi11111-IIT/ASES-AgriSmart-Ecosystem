@@ -30,6 +30,11 @@ st.markdown("""
     }
     .highlight-text { color: #2481CC !important; font-weight: bold; }
     .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; width: 100%; }
+    .call-btn {
+        background-color: #28a745 !important; color: white !important;
+        padding: 12px; border-radius: 8px; text-decoration: none;
+        display: block; text-align: center; font-weight: bold; margin-top: 10px;
+    }
     [data-testid="stSidebar"] { background-color: #243139 !important; }
     [data-testid="stSidebar"] * { color: #ffffff !important; }
     </style>
@@ -63,6 +68,7 @@ df['Soil_Idx'] = le.fit_transform(df['Soil Type'])
 if 'temp' not in st.session_state: st.session_state.temp = 25
 if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
+if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
 # --- 4. NAVIGATION & SIDEBAR ---
 with st.sidebar:
@@ -72,21 +78,18 @@ with st.sidebar:
     
     st.markdown("---")
     st_loc = st.selectbox("Your State", list(schemes_data.keys()) if schemes_data else ["Bihar"])
+    dt_loc = st.text_input("Your District", "Patna") # District added for Rental Hub accuracy
     
     if st.button("Update Local Weather"):
         try:
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={st_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
-            
             if res.get("cod") == 200:
                 st.session_state.temp = res['main']['temp']
                 st.session_state.hum = res['main']['humidity']
                 st.success(f"Weather synced for {st_loc}!")
             else:
                 st.error(f"Weather API Error: {res.get('message')}")
-                # Fallback data if key is inactive
-                st.session_state.temp = random.randint(22, 32)
-                st.session_state.hum = random.randint(45, 65)
         except Exception as e:
             st.error(f"Connection Error: {e}")
 
@@ -97,7 +100,7 @@ if tab == "🏠 Dashboard":
     col1, col2, col3 = st.columns(3)
     col1.metric("Temperature", f"{st.session_state.temp}°C")
     col2.metric("Humidity", f"{st.session_state.hum}%")
-    col3.metric("Location Status", st_loc)
+    col3.metric("Location Status", f"{dt_loc}, {st_loc}")
     st.info("Check 'Govt Schemes' tab for state-specific subsidies!")
 
 elif tab == "🌾 Crop Engine":
@@ -120,9 +123,29 @@ elif tab == "🌾 Crop Engine":
             st.markdown(f'<div class="main-card"><h3>{row["Crop Name"]}</h3><p>Cost: ₹{row["Cost per Acre"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "🚜 Rental Hub":
-    st.title("🚜 Rental Machinery Desk")
-    machine = st.text_input("Machine Type", "Tractor")
-    st.link_button(f"🔍 Search Rental Centers", f"https://www.google.com/search?q={machine}+Rental+in+{st_loc}")
+    st.title(f"🚜 Rental Machinery Desk: {dt_loc}")
+    machine_types = {
+        "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
+        "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
+        "Harvesting": [("Combine Harvester", "🌾✨"), ("Thresher", "🌪️")]
+    }
+    
+    m_tabs = st.tabs(list(machine_types.keys()))
+    for i, category in enumerate(machine_types.keys()):
+        with m_tabs[i]:
+            m_cols = st.columns(2)
+            for idx, (m_name, m_icon) in enumerate(machine_types[category]):
+                if m_cols[idx % 2].button(f"{m_icon} {m_name}", key=f"rent_{m_name}"):
+                   st.session_state.selected_machine = m_name
+
+    st.markdown(f"**Currently Finding:** <span class='highlight-text'>{st.session_state.selected_machine}</span>", unsafe_allow_html=True)
+    
+    # Member 4 Integration: Link to Google Maps
+    search_query = f"{st.session_state.selected_machine}+Rental+in+{dt_loc}+{st_loc}"
+    google_url = f"https://www.google.com/search?q={search_query}"
+    st.link_button(f"🔍 Search Commercial {st.session_state.selected_machine} Centers", google_url, use_container_width=True)
+    
+    st.markdown(f'<a href="tel:18001801551" class="call-btn" style="background:#ffc107 !important; color:black !important;">📞 Call Govt CHC Helpline</a>', unsafe_allow_html=True)
 
 elif tab == "📚 Knowledge Hub":
     try:
