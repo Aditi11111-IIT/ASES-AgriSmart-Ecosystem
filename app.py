@@ -190,7 +190,88 @@ elif tab == "🚜 Rental Hub":
 
 elif tab == "📚 Knowledge Hub":
     st.title("📚 Crop Resource Library")
-    crops_en = [{"Crop": "Wheat", "N-P-K": "120:60:40", "Soil": "Loamy"}, {"Crop": "Rice", "N-P-K": "100:60:40", "Soil": "Clayey"}]
+    crops_en =[
+    {
+        "Crop": "Wheat", 
+        "Type": "Cereal", "Season": "Rabi", "N-P-K": "120:60:40", 
+        "Fertilizer": "Urea, DAP, MOP", "Sowing Depth": "4-5 cm", 
+        "Sowing Method": "Drilling", "Soil": "Loamy", "Water": "Moderate", 
+        "Pest": "Aphids/Rust", "Harvesting": "March-April",
+        "Pro-Tip": "Provide irrigation at the CRI (Crown Root Initiation) stage for max yield."
+    },
+    {
+        "Crop": "Rice (Paddy)", 
+        "Type": "Cereal", "Season": "Kharif", "N-P-K": "100:60:40", 
+        "Fertilizer": "Zinc Sulphate, Urea, DAP", "Sowing Depth": "2-3 cm", 
+        "Sowing Method": "Transplanting", "Soil": "Clayey", "Water": "High", 
+        "Pest": "Stem Borer", "Harvesting": "Nov-Dec",
+        "Pro-Tip": "Maintain 2-5cm of standing water during the tillering stage."
+    },
+    {
+        "Crop": "Mustard", 
+        "Type": "Oilseed", "Season": "Rabi", "N-P-K": "80:40:40", 
+        "Fertilizer": "SSP, Urea, MOP", "Sowing Depth": "2.5-3 cm", 
+        "Sowing Method": "Line Sowing", "Soil": "Sandy Loam", "Water": "Low", 
+        "Pest": "Mustard Aphid", "Harvesting": "Feb-March",
+        "Pro-Tip": "Adding Sulphur (via SSP) significantly increases oil content."
+    },
+    {
+        "Crop": "Cotton", 
+        "Type": "Fiber", "Season": "Kharif", "N-P-K": "100:50:50", 
+        "Fertilizer": "DAP, Urea, Potash", "Sowing Depth": "4-5 cm", 
+        "Sowing Method": "Dibbling", "Soil": "Black Soil", "Water": "Moderate", 
+        "Pest": "Bollworm", "Harvesting": "Oct-Dec",
+        "Pro-Tip": "Avoid excessive Nitrogen late in the season to prevent pest outbreaks."
+    },
+    {
+        "Crop": "Maize (Corn)", 
+        "Type": "Cereal", "Season": "Kharif/Rabi", "N-P-K": "120:60:40", 
+        "Fertilizer": "Urea, DAP, Zinc", "Sowing Depth": "3-5 cm", 
+        "Sowing Method": "Ridge & Furrow", "Soil": "Red/Loamy", "Water": "Moderate", 
+        "Pest": "Fall Armyworm", "Harvesting": "Sept-Oct",
+        "Pro-Tip": "Apply Nitrogen in 3 split doses: Sowing, Knee-high, and Tasseling stages."
+    },
+    {
+        "Crop": "Chickpea (Gram)", 
+        "Type": "Pulse", "Season": "Rabi", "N-P-K": "20:60:20", 
+        "Fertilizer": "DAP, MOP", "Sowing Depth": "7-10 cm", 
+        "Sowing Method": "Drilling", "Soil": "Heavy Soil", "Water": "Low", 
+        "Pest": "Pod Borer", "Harvesting": "Feb-April",
+        "Pro-Tip": "Nipping (plucking top branches) at 50 days encourages more branching."
+    },
+    {
+        "Crop": "Sugarcane", 
+        "Type": "Cash Crop", "Season": "Annual", "N-P-K": "150:80:60", 
+        "Fertilizer": "Urea, SSP, MOP", "Sowing Depth": "10-12 cm", 
+        "Sowing Method": "Trench Method", "Soil": "Alluvial", "Water": "High", 
+        "Pest": "Top Borer", "Harvesting": "Dec-March",
+        "Pro-Tip": "Use 'Setts' from the top 1/3rd of the cane for better germination."
+    },
+    {
+        "Crop": "Groundnut", 
+        "Type": "Oilseed", "Season": "Kharif", "N-P-K": "20:40:40", 
+        "Fertilizer": "Gypsum, SSP, DAP", "Sowing Depth": "5 cm", 
+        "Sowing Method": "Line Sowing", "Soil": "Sandy", "Water": "Moderate", 
+        "Pest": "White Grub", "Harvesting": "Oct-Nov",
+        "Pro-Tip": "Apply Gypsum at the pegging stage (45 days) for better pod development."
+    },
+    {
+        "Crop": "Soybean", 
+        "Type": "Oilseed/Pulse", "Season": "Kharif", "N-P-K": "20:60:40", 
+        "Fertilizer": "DAP, MOP, Sulphur", "Sowing Depth": "3-4 cm", 
+        "Sowing Method": "Broad Bed Furrow", "Soil": "Black Soil", "Water": "Moderate", 
+        "Pest": "Girdle Beetle", "Harvesting": "Sept-Oct",
+        "Pro-Tip": "Seed treatment with Rhizobium culture is essential for nitrogen fixation."
+    },
+    {
+        "Crop": "Potato", 
+        "Type": "Tuber", "Season": "Rabi", "N-P-K": "120:100:120", 
+        "Fertilizer": "CAN, DAP, MOP", "Sowing Depth": "5-7 cm", 
+        "Sowing Method": "Ridging", "Soil": "Sandy Loam", "Water": "Moderate", 
+        "Pest": "Early/Late Blight", "Harvesting": "Jan-March",
+        "Pro-Tip": "De-haulming (cutting tops) 10 days before harvest thickens tuber skin."
+    }
+]
     crops_hi = [{"फसल": "गेहूं", "N-P-K": "120:60:40", "मिट्टी": "दोमट"}, {"फसल": "धान", "N-P-K": "100:60:40", "मिट्टी": "चिकनी"}]
     st.table(pd.DataFrame(crops_hi if lang == "Hindi" else crops_en))
 
