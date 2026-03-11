@@ -17,6 +17,7 @@ except ImportError:
 # --- 1. CONFIGURATION & STYLING ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
+# 🔑 OpenWeatherMap API Key
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
@@ -186,7 +187,6 @@ elif tab == "📈 Price Trends":
         
         with col_c1:
             selected_crop = st.selectbox("Select Crop from Database", crop_names)
-            # Assigning unique base prices based on hash to keep it consistent but different
             base_price = 2000 + (hash(selected_crop) % 4000)
             st.info(f"Estimated Market Rate for {selected_crop}: **₹{base_price} / Quintal**")
             
@@ -195,29 +195,27 @@ elif tab == "📈 Price Trends":
             total_value = base_price * weight
             st.success(f"Total Estimated Value: **₹{total_value:,.2f}**")
 
+        # --- Report Generation Feature ---
+        report_text = f"""
+        ASES AGRI-REPORT
+        ----------------
+        Crop: {selected_crop}
+        Quantity: {weight} Quintals
+        Market Rate: ₹{base_price}/Quintal
+        Total Valuation: ₹{total_value:,.2f}
+        Location: {dt_loc}, {st_loc}
+        Date: 2026-03-12
+        """
+        st.download_button("📩 Download Price Report", report_text, file_name=f"{selected_crop}_report.txt")
+
         st.markdown("---")
-        st.subheader(f"📊 {selected_crop} Price Trend (6 Months)")
+        st.subheader(f"📊 {selected_crop} Price Trajectory (6 Months)")
         
-        # --- DYNAMIC GRAPH LOGIC ---
-        # Generate dynamic data points based on the selected crop's base price
         months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-        # Creating a realistic-looking fluctuation
-        trend_prices = [
-            base_price * 0.95, 
-            base_price * 1.02, 
-            base_price * 0.98, 
-            base_price * 1.05, 
-            base_price * 1.10, 
-            base_price
-        ]
+        trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
         
         dynamic_df = pd.DataFrame({"Month": months, "Price (₹)": trend_prices})
-        fig = px.line(dynamic_df, x="Month", y="Price (₹)", 
-                     title=f"Price Trajectory for {selected_crop}",
-                     markers=True,
-                     line_shape="spline",
-                     color_discrete_sequence=["#2e7d32"])
-        
+        fig = px.line(dynamic_df, x="Month", y="Price (₹)", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
         fig.update_layout(hovermode="x unified")
         st.plotly_chart(fig, use_container_width=True)
     else:
