@@ -12,3 +12,4 @@ plotly
 Pillow
 fpdf
 numpy
+freefont
