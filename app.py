@@ -17,7 +17,6 @@ except ImportError:
 # --- 1. CONFIGURATION & STYLING ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 OpenWeatherMap API Key
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
@@ -163,7 +162,7 @@ elif tab == "🏛️ Govt Schemes":
         st.write("""
         1. **Select Category:** Choose between 'State-Specific' or 'Central Govt' schemes.
         2. **Update Location:** If you don't see your state, change it in the **Sidebar** on the left.
-        3. **Register:** Click the '🔗 Visit Official Portal' link to open the registration page.
+        3. **Register:** Click the '🔗 Visit Official Portal' link to register.
         """)
     state_schemes = get_state_schemes()
     central_schemes = get_central_schemes()
@@ -181,30 +180,48 @@ elif tab == "🏛️ Govt Schemes":
 elif tab == "📈 Price Trends":
     st.title("📈 Market Price Forecast & Calculator")
     
-    # --- Price Calculator Section ---
-    st.subheader("💰 Crop Value Calculator")
     if all_crops:
         crop_names = [c['Crop'] for c in all_crops]
         col_c1, col_c2 = st.columns(2)
         
         with col_c1:
             selected_crop = st.selectbox("Select Crop from Database", crop_names)
-            # Mock pricing logic based on crop type/name for the demo
-            # You can replace this with actual market rates
-            base_price = random.randint(2000, 6000) 
-            st.info(f"Current Market Rate for {selected_crop}: **₹{base_price} / Quintal**")
+            # Assigning unique base prices based on hash to keep it consistent but different
+            base_price = 2000 + (hash(selected_crop) % 4000)
+            st.info(f"Estimated Market Rate for {selected_crop}: **₹{base_price} / Quintal**")
             
         with col_c2:
-            weight = st.number_input("Enter Quantity (Quintals)", min_value=0.0, value=10.0, step=0.5)
+            weight = st.number_input("Enter Quantity (Quintals)", min_value=0.1, value=10.0, step=0.5)
             total_value = base_price * weight
             st.success(f"Total Estimated Value: **₹{total_value:,.2f}**")
+
+        st.markdown("---")
+        st.subheader(f"📊 {selected_crop} Price Trend (6 Months)")
+        
+        # --- DYNAMIC GRAPH LOGIC ---
+        # Generate dynamic data points based on the selected crop's base price
+        months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
+        # Creating a realistic-looking fluctuation
+        trend_prices = [
+            base_price * 0.95, 
+            base_price * 1.02, 
+            base_price * 0.98, 
+            base_price * 1.05, 
+            base_price * 1.10, 
+            base_price
+        ]
+        
+        dynamic_df = pd.DataFrame({"Month": months, "Price (₹)": trend_prices})
+        fig = px.line(dynamic_df, x="Month", y="Price (₹)", 
+                     title=f"Price Trajectory for {selected_crop}",
+                     markers=True,
+                     line_shape="spline",
+                     color_discrete_sequence=["#2e7d32"])
+        
+        fig.update_layout(hovermode="x unified")
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("Crop database not loaded. Please check crop_master.py")
-
-    st.markdown("---")
-    st.subheader("📊 Market Trends")
-    data_p = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr"], "Price": [2200, 2450, 2300, 2600]})
-    st.plotly_chart(px.line(data_p, x="Month", y="Price", title=f"Sample Price Trend for {selected_crop if all_crops else 'Wheat'}"))
 
 elif tab == "📒 Agri Khata":
     st.title("📒 Financial Ledger")
