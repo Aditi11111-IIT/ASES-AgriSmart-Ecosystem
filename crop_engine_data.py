@@ -3,7 +3,6 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder
 
 def get_agri_dataframe():
-    """Returns the primary agricultural dataset."""
     crops = {
         'Crop Name': ['Wheat', 'Rice', 'Cotton', 'Maize', 'Groundnut', 'Soybean', 'Mustard', 'Sugarcane', 'Chickpea', 'Potato'],
         'Soil Type': ['Alluvial', 'Alluvial', 'Black Soil', 'Red Soil', 'Sandy', 'Black Soil', 'Alluvial', 'Loamy', 'Heavy Soil', 'Sandy Loam'],
@@ -16,16 +15,11 @@ def get_agri_dataframe():
     return df, le
 
 def recommend_crops(df, le, soil_pref, budget):
-    """Logic for the KNN recommendation engine."""
     X = df[['Soil_Idx', 'Sowing Month', 'Cost per Acre']]
     knn = NearestNeighbors(n_neighbors=2).fit(X)
-    
-    # Transform user input soil type to index
     try:
         u_idx = le.transform([soil_pref])[0]
     except:
-        u_idx = 0 # Default fallback
-        
-    # Assume month 6 (June) for mid-year recommendations
+        u_idx = 0
     _, idx = knn.kneighbors([[u_idx, 6, budget]])
     return df.iloc[idx[0]]
