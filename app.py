@@ -76,16 +76,23 @@ with st.sidebar:
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     
     st.markdown("---")
-    # State and District selection linked to Schemes
+    # State selection linked to Schemes and Weather
     st_loc = st.selectbox("Your State", list(schemes_data.keys()) if schemes_data else ["Bihar"])
     
     if st.button("Update Local Weather"):
         try:
-            w_url = f"http://api.openweathermap.org/data/2.5/weather?q=Patna,IN&appid={API_KEY}&units=metric"
+            # FIX: Use dynamic location based on sidebar selection
+            w_url = f"http://api.openweathermap.org/data/2.5/weather?q={st_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
-            st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-            st.success("Weather Synced!")
-        except: st.error("Weather API Error")
+            
+            if res.get("cod") == 200:
+                st.session_state.temp = res['main']['temp']
+                st.session_state.hum = res['main']['humidity']
+                st.success(f"Weather synced for {st_loc}!")
+            else:
+                st.error(f"Weather API Error: {res.get('message', 'Unknown Error')}")
+        except Exception as e:
+            st.error(f"Could not connect to Weather API: {e}")
 
 # --- 5. TABS LOGIC ---
 
