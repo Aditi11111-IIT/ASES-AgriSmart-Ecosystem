@@ -2,7 +2,6 @@ streamlit
 pandas
 requests
 geopy
-fpdf
 streamlit-js-eval
 streamlit-folium
 folium
