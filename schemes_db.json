@@ -1,5 +1,3 @@
-# schemes_db.py
-
 def get_state_schemes():
     return {
         "Andaman & Nicobar": {"name": "UT Agriculture Mission", "link": "https://agri.andaman.gov.in/", "desc": "Subsidies for coconut and organic spices."},
