@@ -270,7 +270,7 @@ elif tab == "📚 Knowledge Hub":
         "Sowing Method": "Ridging", "Soil": "Sandy Loam", "Water": "Moderate", 
         "Pest": "Early/Late Blight", "Harvesting": "Jan-March",
         "Pro-Tip": "De-haulming (cutting tops) 10 days before harvest thickens tuber skin."
-    }
+    },
     {
         "Crop": "Arhar (Pigeon Pea)", 
         "Type": "Pulse", "Season": "Kharif", "N-P-K": "20:50:20", 
@@ -432,7 +432,7 @@ elif tab == "📚 Knowledge Hub":
         "बुवाई की विधि": "रिडिंग (Ridging)", "मिट्टी": "बलुई दोमट", "पानी": "मध्यम", 
         "कीट": "झुलसा रोग (Blight)", "कटाई": "जनवरी-मार्च",
         "प्रो-टिप": "खुदाई से 10 दिन पहले पौधों की कटाई (De-haulming) करने से आलू की त्वचा मोटी हो जाती है।"
-    }
+    },
     {
         "फसल": "अरहर (Pigeon Pea)", 
         "प्रकार": "दलहन", "सीजन": "खरीफ", "N-P-K": "20:50:20", 
