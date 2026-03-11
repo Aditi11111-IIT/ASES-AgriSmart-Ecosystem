@@ -271,6 +271,86 @@ elif tab == "📚 Knowledge Hub":
         "Pest": "Early/Late Blight", "Harvesting": "Jan-March",
         "Pro-Tip": "De-haulming (cutting tops) 10 days before harvest thickens tuber skin."
     }
+    {
+        "Crop": "Arhar (Pigeon Pea)", 
+        "Type": "Pulse", "Season": "Kharif", "N-P-K": "20:50:20", 
+        "Fertilizer": "DAP, Sulphur", "Sowing Depth": "5 cm", 
+        "Sowing Method": "Line Sowing", "Soil": "Well-drained Alluvial", "Water": "Low", 
+        "Pest": "Pod Fly", "Harvesting": "Jan-March",
+        "Pro-Tip": "Very sensitive to waterlogging; ensure fields have excellent drainage."
+    },
+    {
+        "Crop": "Sunflower", 
+        "Type": "Oilseed", "Season": "Zaid/Kharif", "N-P-K": "60:80:40", 
+        "Fertilizer": "Urea, SSP, Boron", "Sowing Depth": "3-4 cm", 
+        "Sowing Method": "Dibbling", "Soil": "Deep Loamy", "Water": "Moderate", 
+        "Pest": "Head Borer", "Harvesting": "90-100 Days",
+        "Pro-Tip": "Hand pollination or keeping beehives nearby significantly improves seed setting."
+    },
+    {
+        "Crop": "Moong (Green Gram)", 
+        "Type": "Pulse", "Season": "Summer/Kharif", "N-P-K": "20:40:20", 
+        "Fertilizer": "DAP, MOP", "Sowing Depth": "3-4 cm", 
+        "Sowing Method": "Broadcasting/Drilling", "Soil": "Sandy Loam", "Water": "Low", 
+        "Pest": "Yellow Mosaic Virus", "Harvesting": "65-75 Days",
+        "Pro-Tip": "Pick mature pods in 2-3 rounds to prevent shattering of early ripened seeds."
+    },
+    {
+        "Crop": "Tobacco", 
+        "Type": "Cash Crop", "Season": "Rabi", "N-P-K": "100:50:100", 
+        "Fertilizer": "Ammonium Sulphate, Potash", "Sowing Depth": "0.5 cm (Nursery)", 
+        "Sowing Method": "Transplanting", "Soil": "Light Sandy", "Water": "Moderate", 
+        "Pest": "Leaf Eater", "Harvesting": "Feb-March",
+        "Pro-Tip": "Desuckering (removing side shoots) is vital for improving leaf quality and size."
+    },
+    {
+        "Crop": "Bajra (Pearl Millet)", 
+        "Type": "Millet", "Season": "Kharif", "N-P-K": "80:40:40", 
+        "Fertilizer": "Urea, DAP", "Sowing Depth": "2-3 cm", 
+        "Sowing Method": "Drilling", "Soil": "Sandy", "Water": "Very Low", 
+        "Pest": "Ergot", "Harvesting": "Oct-Nov",
+        "Pro-Tip": "Highly drought-tolerant; avoid irrigation during the flowering stage unless extremely dry."
+    },
+    {
+        "Crop": "Jute", 
+        "Type": "Fiber", "Season": "Kharif", "N-P-K": "40:20:20", 
+        "Fertilizer": "Urea, SSP", "Sowing Depth": "3 cm", 
+        "Sowing Method": "Broadcasting", "Soil": "New Alluvial", "Water": "High", 
+        "Pest": "Semi-looper", "Harvesting": "July-Sept",
+        "Pro-Tip": "Harvest at the 'small pod' stage to get the best fiber strength and fineness."
+    },
+    {
+        "Crop": "Chilli", 
+        "Type": "Spice", "Season": "Kharif/Rabi", "N-P-K": "100:60:60", 
+        "Fertilizer": "FYM, Urea, Potash", "Sowing Depth": "1-2 cm", 
+        "Sowing Method": "Transplanting", "Soil": "Black/Loamy", "Water": "Moderate", 
+        "Pest": "Thrips/Mites", "Harvesting": "Multiple Pickings",
+        "Pro-Tip": "Spray Neem oil regularly to control Thrips, which cause leaf curling."
+    },
+    {
+        "Crop": "Onion", 
+        "Type": "Vegetable", "Season": "Rabi/Kharif", "N-P-K": "100:50:80", 
+        "Fertilizer": "Urea, Potash, Sulphur", "Sowing Depth": "2 cm", 
+        "Sowing Method": "Transplanting", "Soil": "Sandy Loam", "Water": "Moderate", 
+        "Pest": "Onion Thrips", "Harvesting": "March-May",
+        "Pro-Tip": "Stop irrigation 15 days before harvest to improve the storage life of bulbs."
+    },
+    {
+        "Crop": "Tomato", 
+        "Type": "Vegetable", "Season": "Year-round", "N-P-K": "100:80:60", 
+        "Fertilizer": "DAP, Calcium Nitrate", "Sowing Depth": "1 cm", 
+        "Sowing Method": "Transplanting", "Soil": "Well-drained Loam", "Water": "Moderate", 
+        "Pest": "Fruit Borer", "Harvesting": "60-70 Days post-transplant",
+        "Pro-Tip": "Use stakes to keep plants upright; this prevents fruit rot and improves air circulation."
+    },
+    {
+        "Crop": "Turmeric", 
+        "Type": "Spice", "Season": "Annual", "N-P-K": "60:60:120", 
+        "Fertilizer": "FYM, Urea, MOP", "Sowing Depth": "5 cm (Rhizomes)", 
+        "Sowing Method": "Pit/Ridge Method", "Soil": "Sandy Loam", "Water": "High", 
+        "Pest": "Rhizome Rot", "Harvesting": "Jan-March",
+        "Pro-Tip": "Mulching with green leaves immediately after planting helps in moisture retention."
+    }
 ]
     crops_hi = [
     {
@@ -352,6 +432,86 @@ elif tab == "📚 Knowledge Hub":
         "बुवाई की विधि": "रिडिंग (Ridging)", "मिट्टी": "बलुई दोमट", "पानी": "मध्यम", 
         "कीट": "झुलसा रोग (Blight)", "कटाई": "जनवरी-मार्च",
         "प्रो-टिप": "खुदाई से 10 दिन पहले पौधों की कटाई (De-haulming) करने से आलू की त्वचा मोटी हो जाती है।"
+    }
+    {
+        "फसल": "अरहर (Pigeon Pea)", 
+        "प्रकार": "दलहन", "सीजन": "खरीफ", "N-P-K": "20:50:20", 
+        "उर्वरक": "DAP, सल्फर", "बुवाई की गहराई": "5 सेमी", 
+        "बुवाई की विधि": "कतार में बुवाई", "मिट्टी": "अच्छी जलनिकासी वाली जलोढ़", "पानी": "कम", 
+        "कीट": "फली मक्खी (Pod Fly)", "कटाई": "जनवरी-मार्च",
+        "प्रो-टिप": "यह जलजमाव के प्रति बहुत संवेदनशील है; सुनिश्चित करें कि खेत में जल निकासी की अच्छी व्यवस्था हो।"
+    },
+    {
+        "फसल": "सूरजमुखी (Sunflower)", 
+        "प्रकार": "तिलहन", "सीजन": "जायद/खरीफ", "N-P-K": "60:80:40", 
+        "उर्वरक": "यूरिया, SSP, बोरॉन", "बुवाई की गहराई": "3-4 सेमी", 
+        "बुवाई की विधि": "डिबलिंग (Dibbling)", "मिट्टी": "गहरी दोमट", "पानी": "मध्यम", 
+        "कीट": "शीर्ष छेदक (Head Borer)", "कटाई": "90-100 दिन",
+        "प्रो-टिप": "हाथ से परागण करने या पास में मधुमक्खी के छत्ते रखने से बीजों की पैदावार काफी बढ़ जाती है।"
+    },
+    {
+        "फसल": "मूंग (Green Gram)", 
+        "प्रकार": "दलहन", "सीजन": "गर्मी/खरीफ", "N-P-K": "20:40:20", 
+        "उर्वरक": "DAP, MOP", "बुवाई की गहराई": "3-4 सेमी", 
+        "बुवाई की विधि": "छिड़काव/ड्रिलिंग", "मिट्टी": "बलुई दोमट", "पानी": "कम", 
+        "कीट": "पीला मोज़ेक वायरस", "कटाई": "65-75 दिन",
+        "प्रो-टिप": "जल्दी पके हुए बीजों को झड़ने से रोकने के लिए परिपक्व फलियों को 2-3 बार में तोड़ें।"
+    },
+    {
+        "फसल": "तंबाकू (Tobacco)", 
+        "प्रकार": "नकदी फसल", "सीजन": "रबी", "N-P-K": "100:50:100", 
+        "उर्वरक": "अमोनियम सल्फेट, पोटाश", "बुवाई की गहराई": "0.5 सेमी (नर्सरी)", 
+        "बुवाई की विधि": "रोपाई", "मिट्टी": "हल्की रेतीली", "पानी": "मध्यम", 
+        "कीट": "पत्ता खाने वाला कीट", "कटाई": "फरवरी-मार्च",
+        "प्रो-टिप": "पत्तियों की गुणवत्ता और आकार सुधारने के लिए 'डीसकरिंग' (बगल की टहनियों को हटाना) महत्वपूर्ण है।"
+    },
+    {
+        "फसल": "बाजरा (Pearl Millet)", 
+        "प्रकार": "मोटा अनाज", "सीजन": "खरीफ", "N-P-K": "80:40:40", 
+        "उर्वरक": "यूरिया, DAP", "बुवाई की गहराई": "2-3 सेमी", 
+        "बुवाई की विधि": "ड्रिलिंग", "मिट्टी": "रेतीली", "पानी": "बहुत कम", 
+        "कीट": "एर्गोट (Ergot)", "कटाई": "अक्टूबर-नवंबर",
+        "प्रो-टिप": "यह सूखा सहन करने वाली फसल है; फूल आने के दौरान सिंचाई से बचें जब तक कि बहुत सूखा न हो।"
+    },
+    {
+        "फसल": "जूट (Jute)", 
+        "प्रकार": "रेशा", "सीजन": "खरीफ", "N-P-K": "40:20:20", 
+        "उर्वरक": "यूरिया, SSP", "बुवाई की गहराई": "3 सेमी", 
+        "बुवाई की विधि": "छिड़काव", "मिट्टी": "नई जलोढ़", "पानी": "अधिक", 
+        "कीट": "सेमी-लूपर", "कटाई": "जुलाई-सितंबर",
+        "प्रो-टिप": "सर्वोत्तम रेशे की मजबूती और चमक के लिए 'छोटी फली' अवस्था में ही कटाई करें।"
+    },
+    {
+        "फसल": "मिर्च (Chilli)", 
+        "प्रकार": "मसाला", "सीजन": "खरीफ/रबी", "N-P-K": "100:60:60", 
+        "उर्वरक": "गोबर खाद, यूरिया, पोटाश", "बुवाई की गहराई": "1-2 सेमी", 
+        "बुवाई की विधि": "रोपाई", "मिट्टी": "काली/दोमट", "पानी": "मध्यम", 
+        "कीट": "थ्रिप्स/माइट्स", "कटाई": "कई बार तुड़ाई",
+        "प्रो-टिप": "पत्ता मरोड़ रोग पैदा करने वाले थ्रिप्स को नियंत्रित करने के लिए नियमित रूप से नीम के तेल का छिड़काव करें।"
+    },
+    {
+        "फसल": "प्याज (Onion)", 
+        "प्रकार": "सब्जी", "सीजन": "रबी/खरीफ", "N-P-K": "100:50:80", 
+        "उर्वरक": "यूरिया, पोटाश, सल्फर", "बुवाई की गहराई": "2 सेमी", 
+        "बुवाई की विधि": "रोपाई", "मिट्टी": "बलुई दोमट", "पानी": "मध्यम", 
+        "कीट": "प्याज थ्रिप्स", "कटाई": "मार्च-मई",
+        "प्रो-टिप": "प्याज की भंडारण क्षमता बढ़ाने के लिए कटाई से 15 दिन पहले सिंचाई बंद कर दें।"
+    },
+    {
+        "फसल": "टमाटर (Tomato)", 
+        "प्रकार": "सब्जी", "सीजन": "वर्षभर", "N-P-K": "100:80:60", 
+        "उर्वरक": "DAP, कैल्शियम नाइट्रेट", "बुवाई की गहराई": "1 सेमी", 
+        "बुवाई की विधि": "रोपाई", "मिट्टी": "अच्छी जलनिकासी वाली दोमट", "पानी": "मध्यम", 
+        "कीट": "फल छेदक (Fruit Borer)", "कटाई": "रोपाई के 60-70 दिन बाद",
+        "प्रो-टिप": "पौधों को सीधा रखने के लिए डंडों (Staking) का सहारा दें; इससे फलों को सड़ने से बचाया जा सकता है।"
+    },
+    {
+        "फसल": "हल्दी (Turmeric)", 
+        "प्रकार": "मसाला", "सीजन": "वार्षिक", "N-P-K": "60:60:120", 
+        "उर्वरक": "गोबर खाद, यूरिया, MOP", "बुवाई की गहराई": "5 सेमी (प्रकंद)", 
+        "बुवाई की विधि": "गड्डा/मेड़ विधि", "मिट्टी": "बलुई दोमट", "पानी": "अधिक", 
+        "कीट": "प्रकंद सड़न (Rhizome Rot)", "कटाई": "जनवरी-मार्च",
+        "प्रो-टिप": "रोपण के तुरंत बाद हरी पत्तियों से मल्चिंग (आच्छादन) करने से नमी बनाए रखने में मदद मिलती है।"
     }
 ]
     st.table(pd.DataFrame(crops_hi if lang == "Hindi" else crops_en))
