@@ -7,10 +7,17 @@ import requests
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder
 
+# 🌾 Import your modular data files
+from schemes_db import get_state_schemes, get_central_schemes
+try:
+    from crop_master import all_crops
+except ImportError:
+    all_crops = []
+
 # --- 1. CONFIGURATION & STYLING ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 Updated OpenWeatherMap API Key
+# 🔑 OpenWeatherMap API Key
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
@@ -26,6 +33,11 @@ st.markdown("""
     .scheme-card {
         padding: 20px; border-radius: 12px;
         background-color: #e3f2fd; border-left: 8px solid #1976d2;
+        margin-bottom: 15px;
+    }
+    .central-card {
+        padding: 20px; border-radius: 12px;
+        background-color: #f1f8e9; border-left: 8px solid #2e7d32;
         margin-bottom: 15px;
     }
     .highlight-text { color: #2481CC !important; font-weight: bold; }
@@ -51,16 +63,7 @@ def load_agri_data():
     }
     return pd.DataFrame(crops)
 
-def load_schemes():
-    try:
-        with open('schemes_db.json', 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        st.error(f"Error loading schemes_db.json: {e}")
-        return {}
-
 df = load_agri_data()
-schemes_data = load_schemes()
 le = LabelEncoder()
 df['Soil_Idx'] = le.fit_transform(df['Soil Type'])
 
@@ -71,27 +74,28 @@ if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
 # --- 4. NAVIGATION & SIDEBAR ---
+# Load states for the selectbox from your schemes_db
+state_list = list(get_state_schemes().keys())
+
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
     st.title("ASES NAVIGATION")
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     
     st.markdown("---")
-    st_loc = st.selectbox("Your State", list(schemes_data.keys()) if schemes_data else ["Bihar"])
-    dt_loc = st.text_input("Your District", "Patna") # District added for Rental Hub accuracy
+    st_loc = st.selectbox("Your State", state_list if state_list else ["Bihar"])
+    dt_loc = st.text_input("Your District", "Patna")
     
     if st.button("Update Local Weather"):
         try:
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={st_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
             if res.get("cod") == 200:
-                st.session_state.temp = res['main']['temp']
-                st.session_state.hum = res['main']['humidity']
+                st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
                 st.success(f"Weather synced for {st_loc}!")
             else:
                 st.error(f"Weather API Error: {res.get('message')}")
-        except Exception as e:
-            st.error(f"Connection Error: {e}")
+        except: st.error("Connection Error")
 
 # --- 5. TABS LOGIC ---
 
@@ -118,8 +122,7 @@ elif tab == "🌾 Crop Engine":
         knn = NearestNeighbors(n_neighbors=2).fit(X)
         u_idx = le.transform([st.session_state.soil_pref])[0]
         _, idx = knn.kneighbors([[u_idx, 6, bud]])
-        recs = df.iloc[idx[0]]
-        for _, row in recs.iterrows():
+        for _, row in df.iloc[idx[0]].iterrows():
             st.markdown(f'<div class="main-card"><h3>{row["Crop Name"]}</h3><p>Cost: ₹{row["Cost per Acre"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "🚜 Rental Hub":
@@ -129,7 +132,6 @@ elif tab == "🚜 Rental Hub":
         "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
         "Harvesting": [("Combine Harvester", "🌾✨"), ("Thresher", "🌪️")]
     }
-    
     m_tabs = st.tabs(list(machine_types.keys()))
     for i, category in enumerate(machine_types.keys()):
         with m_tabs[i]:
@@ -139,24 +141,13 @@ elif tab == "🚜 Rental Hub":
                    st.session_state.selected_machine = m_name
 
     st.markdown(f"**Currently Finding:** <span class='highlight-text'>{st.session_state.selected_machine}</span>", unsafe_allow_html=True)
-    
-    # Member 4 Integration: Link to Google Maps
     search_query = f"{st.session_state.selected_machine}+Rental+in+{dt_loc}+{st_loc}"
-    google_url = f"https://www.google.com/search?q={search_query}"
-    st.link_button(f"🔍 Search Commercial {st.session_state.selected_machine} Centers", google_url, use_container_width=True)
-    
+    st.link_button(f"🔍 Search Commercial {st.session_state.selected_machine} Centers", f"https://www.google.com/search?q={search_query}", use_container_width=True)
     st.markdown(f'<a href="tel:18001801551" class="call-btn" style="background:#ffc107 !important; color:black !important;">📞 Call Govt CHC Helpline</a>', unsafe_allow_html=True)
 
 elif tab == "📚 Knowledge Hub":
-    try:
-        from crop_master import all_crops
-    except ImportError:
-        st.error("Missing crop_master.py")
-        all_crops = []
-
     st.title("📚 Crop Resource Library")
     search = st.text_input("🔍 Search Crop Name:", "").strip()
-    
     if search:
         filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()]
         for item in filtered:
@@ -164,24 +155,52 @@ elif tab == "📚 Knowledge Hub":
                 st.write(f"**Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
                 st.write(f"**Soil:** {item['Soil']} | **Water:** {item['Water']}")
                 st.info(f"💡 {item['Pro-Tip']}")
-    
     st.markdown("---")
-    st.subheader("📊 All Crops Tabular View")
     st.dataframe(pd.DataFrame(all_crops), use_container_width=True, hide_index=True)
 
 elif tab == "🏛️ Govt Schemes":
-    st.title(f"🏛️ Agricultural Schemes: {st_loc}")
-    if st_loc in schemes_data:
-        scheme = schemes_data[st_loc]
-        st.markdown(f"""
-            <div class="scheme-card">
-                <h2>🌟 {scheme['name']}</h2>
-                <p style="font-size:18px;">{scheme['desc']}</p>
-                <a href="{scheme['link']}" target="_blank" style="color:#1976d2; font-weight:bold;">🔗 Visit Official Portal</a>
-            </div>
-        """, unsafe_allow_html=True)
+    st.title("🏛️ Agricultural Welfare & Registration Portal")
+    
+    # --- Instructions Section ---
+    with st.expander("📖 How to use this Portal", expanded=True):
+        st.write("""
+        1. **Select Category:** Choose between 'State-Specific' or 'Central Govt' schemes.
+        2. **Update Location:** If you don't see your state, change it in the **Sidebar** on the left.
+        3. **Register:** Click the '🔗 Visit Official Portal' link to open the government registration page in a new tab.
+        """)
+
+    # Load data from modular file
+    state_schemes = get_state_schemes()
+    central_schemes = get_central_schemes()
+
+    choice = st.radio("Select Scheme Type", ["State-Specific Schemes", "Central Govt Schemes"], horizontal=True)
+
+    if choice == "State-Specific Schemes":
+        st.subheader(f"📍 Active Schemes in {st_loc}")
+        if st_loc in state_schemes:
+            s = state_schemes[st_loc]
+            st.markdown(f"""
+                <div class="scheme-card">
+                    <h2>🌟 {s['name']}</h2>
+                    <p style="font-size:18px;">{s['desc']}</p>
+                    <a href="{s['link']}" target="_blank" style="color:#1976d2; font-weight:bold; font-size:20px;">
+                        🔗 Visit Official {st_loc} Registration Portal
+                    </a>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("No state-specific data found for the selected location.")
+
     else:
-        st.warning("No specific scheme found for this location.")
+        st.subheader("🇮🇳 Pan-India Central Government Schemes")
+        for cs in central_schemes:
+            st.markdown(f"""
+                <div class="central-card">
+                    <h3>🏢 {cs['name']}</h3>
+                    <p>{cs['desc']}</p>
+                    <a href="{cs['link']}" target="_blank" style="color:#2e7d32; font-weight:bold;">🔗 Open Registration Portal</a>
+                </div>
+            """, unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
     st.title("📈 Market Price Forecasting")
