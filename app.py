@@ -5,7 +5,7 @@ import plotly.express as px
 import requests
 from datetime import datetime
 
-# 🌾 Modular Imports
+# 🌾 Modular Imports (Preserved)
 from crop_engine_data import get_agri_dataframe, recommend_crops
 from schemes_db import get_state_schemes, get_central_schemes
 try:
@@ -13,7 +13,7 @@ try:
 except ImportError:
     all_crops = []
 
-# --- 1. DATABASE SETUP ---
+# --- 1. DATABASE SETUP (STRICTLY PRESERVED) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
@@ -53,21 +53,24 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATA & STATE ---
+# --- 3. LOCATION DATA (MODULAR DISTRICTS) ---
+# This dictionary maps states to their corresponding districts
+districts_map = {
+    "Bihar": ["Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar", "Darbhanga", "Gaya", "Patna"],
+    "Punjab": ["Amritsar", "Barnala", "Bathinda", "Ferozepur", "Gurdaspur", "Jalandhar", "Ludhiana", "Patiala"],
+    "Uttar Pradesh": ["Agra", "Aligarh", "Ayodhya", "Kanpur", "Lucknow", "Prayagraj", "Varanasi"],
+    "Maharashtra": ["Ahmednagar", "Amravati", "Aurangabad", "Nagpur", "Nashik", "Pune", "Thane"]
+}
+
+# --- 4. DATA & SESSION STATE ---
 df, le_encoder = get_agri_dataframe()
 if 'temp' not in st.session_state: st.session_state.temp = 25
 if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
-# --- 4. SIDEBAR (DISTRICT CHOICE ADDED) ---
-state_list = list(get_state_schemes().keys())
-# Sample districts - you can expand this list based on your needs
-districts_map = {
-    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur"],
-    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
-    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra"]
-}
+# --- 5. SIDEBAR (DISTRICT CHOICE IMPLEMENTED) ---
+state_list = list(get_state_schemes().keys()) if get_state_schemes() else list(districts_map.keys())
 
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
@@ -75,30 +78,32 @@ with st.sidebar:
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     st.markdown("---")
     
-    # 📍 DISTRICT SELECTION LOGIC
-    st_loc = st.selectbox("Choose State", state_list if state_list else ["Bihar"])
+    # User chooses State first
+    st_loc = st.selectbox("Choose State", state_list)
+    
+    # Districts dropdown updates based on State choice
     available_districts = districts_map.get(st_loc, ["Patna"])
     dt_loc = st.selectbox("Choose District", available_districts)
     
-    if st.button("🔄 Sync Weather", use_container_width=True):
+    if st.button("🔄 Sync Local Weather", use_container_width=True):
         try:
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={dt_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
             if res.get("cod") == 200:
                 st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-                st.success(f"Synced {dt_loc}!")
+                st.success(f"Weather updated for {dt_loc}!")
                 st.rerun()
-        except: st.error("Weather Service Offline")
+        except: st.error("Weather Service Unavailable")
 
-# --- 5. TABS LOGIC ---
+# --- 6. TABS LOGIC ---
 
 if tab == "🏠 Dashboard":
     st.title("👨‍🌾 Command Center")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Temp", f"{st.session_state.temp}°C")
-    c2.metric("Hum", f"{st.session_state.hum}%")
-    c3.metric("Location", dt_loc)
-    st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><b>Status:</b> Active monitoring for {dt_loc}, {st_loc}.</div>', unsafe_allow_html=True)
+    c1.metric("Temperature", f"{st.session_state.temp}°C")
+    c2.metric("Humidity", f"{st.session_state.hum}%")
+    c3.metric("District", dt_loc)
+    st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><b>Status:</b> Actively tracking conditions in {dt_loc}, {st_loc}.</div>', unsafe_allow_html=True)
 
 elif tab == "🌾 Crop Engine":
     st.title("Smart Recommendations")
@@ -106,7 +111,7 @@ elif tab == "🌾 Crop Engine":
     s_cols = st.columns(2)
     for i, s in enumerate(soil_opts):
         if s_cols[i % 2].button(s, use_container_width=True): st.session_state.soil_pref = s
-    st.info(f"Current Soil Selection: **{st.session_state.soil_pref}**")
+    st.info(f"Selected Soil: **{st.session_state.soil_pref}**")
     bud = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
     if st.button("🚀 FIND BEST CROPS"):
         recs = recommend_crops(df, le_encoder, st.session_state.soil_pref, bud)
@@ -114,7 +119,7 @@ elif tab == "🌾 Crop Engine":
             st.markdown(f'<div class="main-card"><h3 style="color:#2e7d32;">{row["Crop Name"]}</h3><p>Cost: <b>₹{row["Cost per Acre"]}</b></p></div>', unsafe_allow_html=True)
 
 elif tab == "🚜 Rental Hub":
-    st.title(f"🚜 Machinery Rental: {dt_loc}")
+    st.title(f"🚜 Rental Machinery: {dt_loc}")
     machine_types = {
         "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
         "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
@@ -127,13 +132,13 @@ elif tab == "🚜 Rental Hub":
             for idx, (m_name, m_icon) in enumerate(machine_types[category]):
                 if m_cols[idx % 2].button(f"{m_icon} {m_name}", key=f"rent_{m_name}", use_container_width=True):
                     st.session_state.selected_machine = m_name
-    st.success(f"Looking for: {st.session_state.selected_machine}")
-    st.link_button("🔍 Find Local Centers", f"https://www.google.com/search?q={st.session_state.selected_machine}+Rental+in+{dt_loc}", use_container_width=True)
-    st.markdown(f'<a href="tel:18001801551" style="background:#ff9800; color:white; text-decoration:none; padding:15px; border-radius:12px; display:block; text-align:center; font-weight:bold;">📞 Call CHC Helpline</a>', unsafe_allow_html=True)
+    st.success(f"Selected: {st.session_state.selected_machine}")
+    st.link_button("🔍 Find Centers Nearby", f"https://www.google.com/search?q={st.session_state.selected_machine}+Rental+in+{dt_loc}", use_container_width=True)
+    st.markdown(f'<a href="tel:18001801551" style="background:#ff9800; color:white; text-decoration:none; padding:15px; border-radius:12px; display:block; text-align:center; font-weight:bold;">📞 Call Agri-Helpline</a>', unsafe_allow_html=True)
 
 elif tab == "📚 Knowledge Hub":
     st.title("📚 Resource Library")
-    search = st.text_input("🔍 Search Crop Name:", "").strip()
+    search = st.text_input("🔍 Search Crop:", "").strip()
     if search:
         filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()]
         for item in filtered:
@@ -148,14 +153,14 @@ elif tab == "🏛️ Govt Schemes":
     central_schemes = get_central_schemes()
     choice = st.radio("Category", ["State", "Central"], horizontal=True)
     if choice == "State":
-        s = state_schemes.get(st_loc, {"name": "Assistance", "desc": "Visit local office", "link": "#"})
+        s = state_schemes.get(st_loc, {"name": "General Assistance", "desc": "Visit local office", "link": "#"})
         st.markdown(f'<div class="scheme-card"><h2>🌟 {s["name"]}</h2><p>{s["desc"]}</p><a href="{s["link"]}" target="_blank" style="color:#ff9800; font-weight:bold;">🔗 Open Portal</a></div>', unsafe_allow_html=True)
     else:
         for cs in central_schemes:
             st.markdown(f'<div class="main-card" style="border-left: 8px solid #2e7d32;"><h3>🏢 {cs["name"]}</h3><p>{cs["desc"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
-    st.title("📈 Market Insights")
+    st.title("📈 Market Prices")
     if all_crops:
         crop_names = [c['Crop'] for c in all_crops]
         sel_crop = st.selectbox("Select Crop", crop_names)
@@ -164,9 +169,9 @@ elif tab == "📈 Price Trends":
         base_price = 2000 + (hash(sel_crop) % 4000)
         total_val = base_price * weight
         st.metric("Estimated Market Value", f"₹{total_val:,.2f}")
-        if st.button("📓 Add to Agri Khata"):
+        if st.button("📓 Log to Agri Khata"):
             add_entry("Income (Sale)", sel_crop, weight, total_val, season_sel)
-            st.toast("Saved to Ledger!")
+            st.toast("Entry added successfully!")
         
         months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
         trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
@@ -175,7 +180,7 @@ elif tab == "📈 Price Trends":
         st.plotly_chart(fig, use_container_width=True)
 
 elif tab == "📒 Agri Khata":
-    st.title("📒 Digital Ledger")
+    st.title("📒 Seasonal Digital Ledger")
     filter_season = st.selectbox("🔍 Filter Season", ["All Seasons", "Kharif", "Rabi", "Zaid"])
     conn = sqlite3.connect('agri_khata.db')
     query = "SELECT * FROM ledger" if filter_season == "All Seasons" else f"SELECT * FROM ledger WHERE season='{filter_season}'"
@@ -198,10 +203,10 @@ elif tab == "📒 Agri Khata":
                 <b>{row['item']}</b> <span class="{t_class}" style="float:right;">₹{row['total']}</span>
                 </div>''', unsafe_allow_html=True)
         
-        with st.expander("➕ Log New Expense"):
+        with st.expander("➕ Add New Record"):
             e_item = st.text_input("Expense Name")
             e_amt = st.number_input("Amount (₹)", min_value=0)
             e_s = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"], key="e_khata")
-            if st.button("Save Record", use_container_width=True):
+            if st.button("Save Entry", use_container_width=True):
                 add_entry("Expense", e_item, "N/A", e_amt, e_s)
                 st.rerun()
