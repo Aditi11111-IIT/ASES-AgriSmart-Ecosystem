@@ -1,14 +1,7 @@
 streamlit
 pandas
-requests
-geopy
-streamlit-js-eval
-streamlit-folium
-folium
-googlemaps
-numpy
-plotly
-Pillow
 fpdf2
+plotly
 numpy
-freefont
+requests
+Pillow
