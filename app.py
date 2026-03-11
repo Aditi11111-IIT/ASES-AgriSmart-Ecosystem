@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-import random
 import plotly.express as px
 import requests
 from datetime import datetime
@@ -41,6 +40,7 @@ API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
     <style>
+    .main { background-color: #f0f2f6; }
     .main-card { padding: 25px; border-radius: 12px; background-color: #FFFFFF !important; border: 1px solid #2481CC; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
     .scheme-card { padding: 20px; border-radius: 12px; background-color: #e3f2fd; border-left: 8px solid #1976d2; margin-bottom: 15px; }
     .central-card { padding: 20px; border-radius: 12px; background-color: #f1f8e9; border-left: 8px solid #2e7d32; margin-bottom: 15px; }
@@ -76,7 +76,7 @@ with st.sidebar:
             if res.get("cod") == 200:
                 st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
                 st.success("Weather synced!")
-        except: st.error("Weather API Connection Error")
+        except: st.error("Connection Error")
 
 # --- 6. TABS LOGIC ---
 
@@ -86,7 +86,6 @@ if tab == "🏠 Dashboard":
     col1.metric("Temperature", f"{st.session_state.temp}°C")
     col2.metric("Humidity", f"{st.session_state.hum}%")
     col3.metric("Location Status", f"{dt_loc}, {st_loc}")
-    st.info("Check 'Govt Schemes' tab for state-specific subsidies!")
 
 elif tab == "🌾 Crop Engine":
     st.title("AgriAI Smart Recommendations")
@@ -95,7 +94,7 @@ elif tab == "🌾 Crop Engine":
     for i, s in enumerate(soil_opts):
         if s_cols[i].button(s): st.session_state.soil_pref = s
     st.markdown(f"Current Soil: **{st.session_state.soil_pref}**")
-    bud = st.slider("Investment Budget (₹/Acre)", 5000, 50000, 15000)
+    bud = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
     if st.button("🚀 FIND BEST CROPS"):
         recs = recommend_crops(df, le_encoder, st.session_state.soil_pref, bud)
         for _, row in recs.iterrows():
@@ -125,9 +124,8 @@ elif tab == "📚 Knowledge Hub":
     if search:
         filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()]
         for item in filtered:
-            with st.expander(f"📖 {item['Crop']} - Detailed Guidelines", expanded=True):
-                st.write(f"**Type:** {item['Type']} | **Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
-                st.write(f"**Soil:** {item['Soil']} | **Water:** {item['Water']}")
+            with st.expander(f"📖 {item['Crop']}", expanded=True):
+                st.write(f"**Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
                 st.info(f"💡 {item['Pro-Tip']}")
     st.dataframe(pd.DataFrame(all_crops), use_container_width=True, hide_index=True)
 
@@ -135,13 +133,13 @@ elif tab == "🏛️ Govt Schemes":
     st.title("🏛️ Agricultural Welfare Portal")
     state_schemes = get_state_schemes()
     central_schemes = get_central_schemes()
-    choice = st.radio("Select Scheme Type", ["State-Specific Schemes", "Central Govt Schemes"], horizontal=True)
-    if choice == "State-Specific Schemes":
-        s = state_schemes.get(st_loc, {"name": "General Assistance", "desc": "Contact local block office", "link": "#"})
-        st.markdown(f"""<div class="scheme-card"><h2>🌟 {s['name']}</h2><p>{s['desc']}</p><a href="{s['link']}" target="_blank">🔗 Official Portal</a></div>""", unsafe_allow_html=True)
+    choice = st.radio("Select Category", ["State Schemes", "Central Schemes"], horizontal=True)
+    if choice == "State Schemes":
+        s = state_schemes.get(st_loc, {"name": "General Assistance", "desc": "Visit local office", "link": "#"})
+        st.markdown(f'<div class="scheme-card"><h2>🌟 {s["name"]}</h2><p>{s["desc"]}</p><a href="{s["link"]}" target="_blank">🔗 Portal</a></div>', unsafe_allow_html=True)
     else:
         for cs in central_schemes:
-            st.markdown(f"""<div class="central-card"><h3>🏢 {cs['name']}</h3><p>{cs['desc']}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f'<div class="central-card"><h3>🏢 {cs["name"]}</h3><p>{cs["desc"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
     st.title("📈 Price Forecast & Calculator")
@@ -151,20 +149,29 @@ elif tab == "📈 Price Trends":
         with col1: sel_crop = st.selectbox("Select Crop", crop_names)
         with col2: weight = st.number_input("Quantity (Q)", min_value=0.1, value=10.0)
         with col3: season_sel = st.selectbox("Tag Season", ["Kharif", "Rabi", "Zaid"])
+        
         base_price = 2000 + (hash(sel_crop) % 4000)
         total_val = base_price * weight
         st.metric("Total Value", f"₹{total_val:,.2f}")
+        
         if st.button("📓 Save to Agri Khata"):
             add_entry("Income (Sale)", sel_crop, weight, total_val, season_sel)
             st.toast("Saved!")
 
+        # RESTORED GRAPH
+        months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
+        trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
+        fig = px.line(pd.DataFrame({"Month": months, "Price": trend_prices}), x="Month", y="Price", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
+        st.plotly_chart(fig, use_container_width=True)
+
 elif tab == "📒 Agri Khata":
     st.title("📒 Seasonal Digital Ledger")
-    filter_season = st.selectbox("🔍 Filter", ["All Seasons", "Kharif", "Rabi", "Zaid"])
+    filter_season = st.selectbox("🔍 Filter Season", ["All Seasons", "Kharif", "Rabi", "Zaid"])
     conn = sqlite3.connect('agri_khata.db')
     query = "SELECT * FROM ledger" if filter_season == "All Seasons" else f"SELECT * FROM ledger WHERE season='{filter_season}'"
     df_ledger = pd.read_sql_query(query, conn)
     conn.close()
+    
     if not df_ledger.empty:
         income = df_ledger[df_ledger['type'].str.contains('Income')]['total'].sum()
         expense = df_ledger[df_ledger['type'].str.contains('Expense')]['total'].sum()
@@ -173,10 +180,11 @@ elif tab == "📒 Agri Khata":
         c2.metric("Investment", f"₹{expense:,.2f}")
         c3.metric("Profit", f"₹{income - expense:,.2f}")
         st.dataframe(df_ledger, use_container_width=True)
+        
         with st.expander("➕ Add Expense"):
-            ex_item = st.text_input("Item")
-            ex_amt = st.number_input("Amount", min_value=0)
-            ex_s = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"], key="ex_s")
-            if st.button("Save Record"):
-                add_entry("Expense", ex_item, "N/A", ex_amt, ex_s)
+            e_item = st.text_input("Expense Name")
+            e_amt = st.number_input("Amount (₹)", min_value=0)
+            e_s = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"], key="e_khata")
+            if st.button("Save"):
+                add_entry("Expense", e_item, "N/A", e_amt, e_s)
                 st.rerun()
