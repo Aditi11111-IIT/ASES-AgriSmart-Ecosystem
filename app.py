@@ -8,18 +8,17 @@ from datetime import datetime
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder
 
-# 🌾 Import modular data
+# 🌾 Import your modular data files
 from schemes_db import get_state_schemes, get_central_schemes
 try:
     from crop_master import all_crops
 except ImportError:
     all_crops = []
 
-# --- 1. DATABASE SETUP (UPDATED FOR SEASONS) ---
+# --- 1. DATABASE SETUP (PERSISTENT STORAGE) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
-    # Added 'season' column
     c.execute('''CREATE TABLE IF NOT EXISTS ledger 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   date TEXT, type TEXT, item TEXT, qty TEXT, total REAL, season TEXT)''')
@@ -39,95 +38,191 @@ init_db()
 
 # --- 2. CONFIGURATION & STYLING (STRICTLY PRESERVED) ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
+
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
     <style>
-    .main-card { padding: 25px; border-radius: 12px; background-color: #FFFFFF !important; border: 1px solid #2481CC; margin-bottom: 20px; }
-    .scheme-card { padding: 20px; border-radius: 12px; background-color: #e3f2fd; border-left: 8px solid #1976d2; margin-bottom: 15px; }
+    .main { background-color: #f0f2f6; }
+    .main-card { 
+        padding: 25px; border-radius: 12px; 
+        background-color: #FFFFFF !important; 
+        border: 1px solid #2481CC; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        margin-bottom: 20px;
+    }
+    .scheme-card {
+        padding: 20px; border-radius: 12px;
+        background-color: #e3f2fd; border-left: 8px solid #1976d2;
+        margin-bottom: 15px;
+    }
+    .central-card {
+        padding: 20px; border-radius: 12px;
+        background-color: #f1f8e9; border-left: 8px solid #2e7d32;
+        margin-bottom: 15px;
+    }
+    .highlight-text { color: #2481CC !important; font-weight: bold; }
     .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; width: 100%; }
+    .call-btn {
+        background-color: #28a745 !important; color: white !important;
+        padding: 12px; border-radius: 8px; text-decoration: none;
+        display: block; text-align: center; font-weight: bold; margin-top: 10px;
+    }
     [data-testid="stSidebar"] { background-color: #243139 !important; }
     [data-testid="stSidebar"] * { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATA ENGINES & SESSION STATE (STRICTLY PRESERVED) ---
+# --- 3. DATA ENGINES (STRICTLY PRESERVED) ---
 @st.cache_data
 def load_agri_data():
-    crops = {'Crop Name': ['Wheat', 'Rice', 'Cotton', 'Maize'], 'Soil Type': ['Alluvial', 'Alluvial', 'Black Soil', 'Red Soil'], 'Sowing Month': [11, 6, 6, 6], 'Cost per Acre': [15000, 25000, 20000, 12000]}
+    crops = {
+        'Crop Name': ['Wheat', 'Rice', 'Cotton', 'Maize', 'Groundnut', 'Soybean', 'Mustard', 'Sugarcane', 'Chickpea', 'Potato'],
+        'Soil Type': ['Alluvial', 'Alluvial', 'Black Soil', 'Red Soil', 'Sandy', 'Black Soil', 'Alluvial', 'Loamy', 'Heavy Soil', 'Sandy Loam'],
+        'Sowing Month': [11, 6, 6, 6, 5, 6, 10, 2, 10, 10],
+        'Cost per Acre': [15000, 25000, 20000, 12000, 18000, 16000, 14000, 30000, 13000, 35000]
+    }
     return pd.DataFrame(crops)
 
-df_base = load_agri_data()
+df = load_agri_data()
 le = LabelEncoder()
-df_base['Soil_Idx'] = le.fit_transform(df_base['Soil Type'])
+df['Soil_Idx'] = le.fit_transform(df['Soil Type'])
 
-if 'temp' not in st.session_state: st.session_state.temp, st.session_state.hum = 25, 50
+# --- 4. SESSION STATE (STRICTLY PRESERVED) ---
+if 'temp' not in st.session_state: st.session_state.temp = 25
+if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
-# --- 4. NAVIGATION (STRICTLY PRESERVED) ---
+# --- 5. NAVIGATION & SIDEBAR (STRICTLY PRESERVED) ---
 state_list = list(get_state_schemes().keys())
+
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
+    st.title("ASES NAVIGATION")
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
+    
+    st.markdown("---")
     st_loc = st.selectbox("Your State", state_list if state_list else ["Bihar"])
     dt_loc = st.text_input("Your District", "Patna")
+    
+    if st.button("Update Local Weather"):
+        try:
+            w_url = f"http://api.openweathermap.org/data/2.5/weather?q={st_loc},IN&appid={API_KEY}&units=metric"
+            res = requests.get(w_url).json()
+            if res.get("cod") == 200:
+                st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
+                st.success(f"Weather synced for {st_loc}!")
+            else:
+                st.error(f"Weather API Error: {res.get('message')}")
+        except: st.error("Connection Error")
 
-# --- 5. TABS LOGIC ---
+# --- 6. TABS LOGIC ---
 
-# [PRESERVED DASHBOARD, CROP ENGINE, RENTAL HUB, KNOWLEDGE HUB, GOVT SCHEMES]
 if tab == "🏠 Dashboard":
     st.title(f"👨‍🌾 Command Center")
     col1, col2, col3 = st.columns(3)
     col1.metric("Temperature", f"{st.session_state.temp}°C")
     col2.metric("Humidity", f"{st.session_state.hum}%")
     col3.metric("Location Status", f"{dt_loc}, {st_loc}")
+    st.info("Check 'Govt Schemes' tab for state-specific subsidies!")
 
 elif tab == "🌾 Crop Engine":
     st.title("AgriAI Smart Recommendations")
-    bud = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
+    soil_opts = ["Alluvial", "Black Soil", "Red Soil", "Sandy"]
+    s_cols = st.columns(4)
+    for i, s in enumerate(soil_opts):
+        if s_cols[i].button(s): st.session_state.soil_pref = s
+    
+    st.markdown(f"Current Soil: **{st.session_state.soil_pref}**")
+    bud = st.slider("Investment Budget (₹/Acre)", 5000, 50000, 15000)
+    
     if st.button("🚀 FIND BEST CROPS"):
-        st.success("Analysis complete based on soil and budget.")
+        X = df[['Soil_Idx', 'Sowing Month', 'Cost per Acre']]
+        knn = NearestNeighbors(n_neighbors=2).fit(X)
+        u_idx = le.transform([st.session_state.soil_pref])[0]
+        _, idx = knn.kneighbors([[u_idx, 6, bud]])
+        for _, row in df.iloc[idx[0]].iterrows():
+            st.markdown(f'<div class="main-card"><h3>{row["Crop Name"]}</h3><p>Cost: ₹{row["Cost per Acre"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "🚜 Rental Hub":
-    st.title(f"🚜 Rental Machinery Desk")
-    st.link_button(f"🔍 Search Near {dt_loc}", f"https://www.google.com/search?q=Farm+Machinery+Rental+in+{dt_loc}")
+    st.title(f"🚜 Rental Machinery Desk: {dt_loc}")
+    machine_types = {
+        "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
+        "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
+        "Harvesting": [("Combine Harvester", "🌾✨"), ("Thresher", "🌪️")]
+    }
+    m_tabs = st.tabs(list(machine_types.keys()))
+    for i, category in enumerate(machine_types.keys()):
+        with m_tabs[i]:
+            m_cols = st.columns(2)
+            for idx, (m_name, m_icon) in enumerate(machine_types[category]):
+                if m_cols[idx % 2].button(f"{m_icon} {m_name}", key=f"rent_{m_name}"):
+                   st.session_state.selected_machine = m_name
+
+    st.markdown(f"**Currently Finding:** <span class='highlight-text'>{st.session_state.selected_machine}</span>", unsafe_allow_html=True)
+    search_query = f"{st.session_state.selected_machine}+Rental+in+{dt_loc}+{st_loc}"
+    st.link_button(f"🔍 Search Commercial {st.session_state.selected_machine} Centers", f"https://www.google.com/search?q={search_query}", use_container_width=True)
+    st.markdown(f'<a href="tel:18001801551" class="call-btn" style="background:#ffc107 !important; color:black !important;">📞 Call Govt CHC Helpline</a>', unsafe_allow_html=True)
 
 elif tab == "📚 Knowledge Hub":
     st.title("📚 Crop Resource Library")
-    st.dataframe(pd.DataFrame(all_crops), use_container_width=True)
+    search = st.text_input("🔍 Search Crop Name:", "").strip()
+    if search:
+        filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()]
+        for item in filtered:
+            with st.expander(f"📖 {item['Crop']} - Detailed Guidelines", expanded=True):
+                st.write(f"**Type:** {item['Type']} | **Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
+                st.write(f"**Soil:** {item['Soil']} | **Water:** {item['Water']}")
+                st.info(f"💡 {item['Pro-Tip']}")
+    st.markdown("---")
+    st.dataframe(pd.DataFrame(all_crops), use_container_width=True, hide_index=True)
 
 elif tab == "🏛️ Govt Schemes":
-    st.title("🏛️ Welfare Portal")
-    s = get_state_schemes().get(st_loc, {"name": "General Scheme", "desc": "Contact local office", "link": "#"})
-    st.markdown(f'<div class="scheme-card"><h2>🌟 {s["name"]}</h2><p>{s["desc"]}</p></div>', unsafe_allow_html=True)
+    st.title("🏛️ Agricultural Welfare & Registration Portal")
+    with st.expander("📖 How to use this Portal", expanded=True):
+        st.write("""1. Select Category. 2. Update Location in Sidebar. 3. Click 'Visit Official Portal' to register.""")
+    state_schemes = get_state_schemes()
+    central_schemes = get_central_schemes()
+    choice = st.radio("Select Scheme Type", ["State-Specific Schemes", "Central Govt Schemes"], horizontal=True)
+    if choice == "State-Specific Schemes":
+        st.subheader(f"📍 Active Schemes in {st_loc}")
+        if st_loc in state_schemes:
+            s = state_schemes[st_loc]
+            st.markdown(f"""<div class="scheme-card"><h2>🌟 {s['name']}</h2><p>{s['desc']}</p><a href="{s['link']}" target="_blank">🔗 Visit Official Portal</a></div>""", unsafe_allow_html=True)
+    else:
+        st.subheader("🇮🇳 Pan-India Central Government Schemes")
+        for cs in central_schemes:
+            st.markdown(f"""<div class="central-card"><h3>🏢 {cs['name']}</h3><p>{cs['desc']}</p><a href="{cs['link']}" target="_blank">🔗 Open Registration Portal</a></div>""", unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
-    st.title("📈 Price Forecast & Calculator")
-    # Instructions
-    st.info("💡 **How to use:** Select crop & weight -> Choose Season -> Click 'Save to Khata' to record permanently.")
-    
-    crop_names = [c['Crop'] for c in all_crops] if all_crops else ["Wheat"]
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        sel_crop = st.selectbox("Select Crop", crop_names)
-    with col2:
-        weight = st.number_input("Quantity (Q)", min_value=0.1, value=10.0)
-    with col3:
-        season_sel = st.selectbox("Current Season", ["Kharif", "Rabi", "Zaid"])
-    
-    base_price = 2000 + (hash(sel_crop) % 4000)
-    total_val = base_price * weight
-    st.metric("Total Valuation", f"₹{total_val:,.2f}", f"Rate: ₹{base_price}/Q")
+    st.title("📈 Market Price Forecast & Calculator")
+    if all_crops:
+        crop_names = [c['Crop'] for c in all_crops]
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            selected_crop = st.selectbox("Select Crop from Database", crop_names)
+            base_price = 2000 + (hash(selected_crop) % 4000)
+            st.info(f"Rate: **₹{base_price} / Q**")
+        with col_c2:
+            weight = st.number_input("Enter Quantity (Q)", min_value=0.1, value=10.0)
+            total_value = base_price * weight
+            st.success(f"Total Value: **₹{total_value:,.2f}**")
+        with col_c3:
+            season_sel = st.selectbox("Tag Season", ["Kharif", "Rabi", "Zaid"])
 
-    if st.button("📓 Save to Agri Khata"):
-        add_entry("Income (Sale)", sel_crop, weight, total_val, season_sel)
-        st.toast(f"Saved to {season_sel} Ledger!")
+        if st.button("📓 Save to Agri Khata"):
+            add_entry("Income (Sale)", selected_crop, weight, total_value, season_sel)
+            st.toast(f"Saved to {season_sel} Ledger!")
+
+        st.markdown("---")
+        months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
+        trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
+        fig = px.line(pd.DataFrame({"Month": months, "Price": trend_prices}), x="Month", y="Price", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
+        st.plotly_chart(fig, use_container_width=True)
 
 elif tab == "📒 Agri Khata":
     st.title("📒 Seasonal Digital Ledger")
-    
-    # Season Filter UI
     filter_season = st.selectbox("🔍 Filter by Season", ["All Seasons", "Kharif", "Rabi", "Zaid"])
     
     conn = sqlite3.connect('agri_khata.db')
@@ -140,19 +235,22 @@ elif tab == "📒 Agri Khata":
         expense = df_ledger[df_ledger['type'].str.contains('Expense')]['total'].sum()
         
         m1, m2, m3 = st.columns(3)
-        m1.metric(f"{filter_season} Revenue", f"₹{income:,.2f}")
-        m2.metric(f"{filter_season} Expense", f"₹{expense:,.2f}")
+        m1.metric("Revenue", f"₹{income:,.2f}")
+        m2.metric("Investment", f"₹{expense:,.2f}", delta_color="inverse")
         m3.metric("Net Profit", f"₹{income - expense:,.2f}")
 
         st.dataframe(df_ledger, use_container_width=True)
         
-        with st.expander("➕ Add Manual Expense"):
+        with st.expander("➕ Add Manual Farm Expense"):
             c1, c2, c3 = st.columns(3)
-            ex_item = c1.text_input("Item")
-            ex_amt = c2.number_input("Amount", min_value=0)
-            ex_season = c3.selectbox("Season", ["Kharif", "Rabi", "Zaid"], key="ex_season")
-            if st.button("Save Expense"):
-                add_entry("Expense", ex_item, "N/A", ex_amt, ex_season)
+            ex_item = c1.text_input("Expense Item")
+            ex_amt = c2.number_input("Amount (₹)", min_value=0)
+            ex_season = c3.selectbox("Season", ["Kharif", "Rabi", "Zaid"], key="khata_ex")
+            if st.button("Save Expense Record"):
+                add_entry("Expense (Cost)", ex_item, "N/A", ex_amt, ex_season)
                 st.rerun()
+        
+        csv = df_ledger.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Export CSV", data=csv, file_name="agri_ledger.csv")
     else:
-        st.warning(f"No records found for {filter_season}.")
+        st.info(f"No records found for {filter_season}.")
