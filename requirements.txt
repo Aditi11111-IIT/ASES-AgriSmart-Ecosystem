@@ -9,3 +9,6 @@ folium
 googlemaps
 numpy
 plotly
+Pillow
+fpdf
+numpy
