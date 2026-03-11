@@ -5,7 +5,7 @@ import plotly.express as px
 import requests
 from datetime import datetime
 
-# 🌾 Modular Imports (Preserved)
+# 🌾 Modular Imports
 from crop_engine_data import get_agri_dataframe, recommend_crops
 from schemes_db import get_state_schemes, get_central_schemes
 try:
@@ -13,7 +13,7 @@ try:
 except ImportError:
     all_crops = []
 
-# --- 1. DATABASE SETUP (STRICTLY PRESERVED) ---
+# --- 1. DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
@@ -32,13 +32,6 @@ def add_entry(entry_type, item, qty, total, season):
     conn.commit()
     conn.close()
 
-def clear_db():
-    conn = sqlite3.connect('agri_khata.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM ledger")
-    conn.commit()
-    conn.close()
-
 init_db()
 
 # --- 2. CONFIGURATION & TRICOLOR STYLING ---
@@ -47,86 +40,65 @@ API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
     <style>
-    /* Theme: White, Green, Orange */
     .stApp { background-color: #FFFFFF; }
-    
-    /* Sidebar styling */
     [data-testid="stSidebar"] { background-color: #2e7d32 !important; }
     [data-testid="stSidebar"] * { color: white !important; }
-    
-    /* Card Styles */
-    .main-card { 
-        padding: 20px; border-radius: 12px; background-color: #FFFFFF; 
-        border: 2px solid #2e7d32; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; 
-    }
-    .scheme-card { 
-        padding: 20px; border-radius: 12px; background-color: #fff3e0; 
-        border-left: 8px solid #ff9800; margin-bottom: 15px; 
-    }
-    
-    /* Buttons */
-    .stButton>button { 
-        border-radius: 12px; height: 3.5em; background-color: #2e7d32; 
-        color: white; width: 100%; font-weight: bold; border: none;
-    }
-    .stButton>button:hover { background-color: #ff9800; color: white; }
-    
-    /* Ledger Cards */
+    .main-card { padding: 20px; border-radius: 12px; background-color: #FFFFFF; border: 2px solid #2e7d32; margin-bottom: 15px; }
+    .scheme-card { padding: 20px; border-radius: 12px; background-color: #fff3e0; border-left: 8px solid #ff9800; margin-bottom: 15px; }
+    .stButton>button { border-radius: 12px; height: 3.5em; background-color: #2e7d32; color: white; width: 100%; font-weight: bold; border: none; }
+    .stButton>button:hover { background-color: #ff9800; }
     .ledger-card { padding: 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #eee; background: white; }
     .income-text { color: #2e7d32; font-weight: bold; }
     .expense-text { color: #ff9800; font-weight: bold; }
-
-    /* Responsive Metrics */
-    @media (max-width: 600px) {
-        .stMetric label { font-size: 0.9rem !important; }
-        .stMetric div { font-size: 1.4rem !important; }
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATA LOADING ---
+# --- 3. DATA & STATE ---
 df, le_encoder = get_agri_dataframe()
-
-# --- 4. SESSION STATE ---
 if 'temp' not in st.session_state: st.session_state.temp = 25
 if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
 
-# --- 5. SIDEBAR ---
+# --- 4. SIDEBAR (DISTRICT CHOICE ADDED) ---
 state_list = list(get_state_schemes().keys())
+# Sample districts - you can expand this list based on your needs
+districts_map = {
+    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur"],
+    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra"]
+}
+
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
     st.title("ASES NAVIGATION")
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     st.markdown("---")
-    st_loc = st.selectbox("Your State", state_list if state_list else ["Bihar"])
-    dt_loc = st.text_input("Your District", "Patna")
     
-    if st.button("🔄 Update Weather", use_container_width=True):
+    # 📍 DISTRICT SELECTION LOGIC
+    st_loc = st.selectbox("Choose State", state_list if state_list else ["Bihar"])
+    available_districts = districts_map.get(st_loc, ["Patna"])
+    dt_loc = st.selectbox("Choose District", available_districts)
+    
+    if st.button("🔄 Sync Weather", use_container_width=True):
         try:
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={dt_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
             if res.get("cod") == 200:
                 st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-                st.success("Weather synced!")
+                st.success(f"Synced {dt_loc}!")
                 st.rerun()
-        except: st.error("Connection Error")
-    
-    if st.button("🗑️ Clear Ledger Data", use_container_width=True):
-        clear_db()
-        st.toast("Ledger Cleared!")
-        st.rerun()
+        except: st.error("Weather Service Offline")
 
-# --- 6. TABS LOGIC ---
+# --- 5. TABS LOGIC ---
 
 if tab == "🏠 Dashboard":
     st.title("👨‍🌾 Command Center")
     c1, c2, c3 = st.columns(3)
     c1.metric("Temp", f"{st.session_state.temp}°C")
     c2.metric("Hum", f"{st.session_state.hum}%")
-    c3.metric("Loc", dt_loc)
-    st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><b>Status:</b> Ready for monitoring in {dt_loc}.</div>', unsafe_allow_html=True)
+    c3.metric("Location", dt_loc)
+    st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><b>Status:</b> Active monitoring for {dt_loc}, {st_loc}.</div>', unsafe_allow_html=True)
 
 elif tab == "🌾 Crop Engine":
     st.title("Smart Recommendations")
@@ -134,7 +106,7 @@ elif tab == "🌾 Crop Engine":
     s_cols = st.columns(2)
     for i, s in enumerate(soil_opts):
         if s_cols[i % 2].button(s, use_container_width=True): st.session_state.soil_pref = s
-    st.markdown(f"Current Soil: **{st.session_state.soil_pref}**")
+    st.info(f"Current Soil Selection: **{st.session_state.soil_pref}**")
     bud = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
     if st.button("🚀 FIND BEST CROPS"):
         recs = recommend_crops(df, le_encoder, st.session_state.soil_pref, bud)
@@ -142,7 +114,7 @@ elif tab == "🌾 Crop Engine":
             st.markdown(f'<div class="main-card"><h3 style="color:#2e7d32;">{row["Crop Name"]}</h3><p>Cost: <b>₹{row["Cost per Acre"]}</b></p></div>', unsafe_allow_html=True)
 
 elif tab == "🚜 Rental Hub":
-    st.title(f"🚜 Rental Hub: {dt_loc}")
+    st.title(f"🚜 Machinery Rental: {dt_loc}")
     machine_types = {
         "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
         "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
@@ -155,9 +127,9 @@ elif tab == "🚜 Rental Hub":
             for idx, (m_name, m_icon) in enumerate(machine_types[category]):
                 if m_cols[idx % 2].button(f"{m_icon} {m_name}", key=f"rent_{m_name}", use_container_width=True):
                     st.session_state.selected_machine = m_name
-    st.success(f"Selected: {st.session_state.selected_machine}")
-    st.link_button("🔍 Search Centers", f"https://www.google.com/search?q={st.session_state.selected_machine}+Rental+in+{dt_loc}", use_container_width=True)
-    st.markdown(f'<a href="tel:18001801551" style="background:#ff9800; color:white; text-decoration:none; padding:15px; border-radius:12px; display:block; text-align:center; font-weight:bold;">📞 Call Helpline</a>', unsafe_allow_html=True)
+    st.success(f"Looking for: {st.session_state.selected_machine}")
+    st.link_button("🔍 Find Local Centers", f"https://www.google.com/search?q={st.session_state.selected_machine}+Rental+in+{dt_loc}", use_container_width=True)
+    st.markdown(f'<a href="tel:18001801551" style="background:#ff9800; color:white; text-decoration:none; padding:15px; border-radius:12px; display:block; text-align:center; font-weight:bold;">📞 Call CHC Helpline</a>', unsafe_allow_html=True)
 
 elif tab == "📚 Knowledge Hub":
     st.title("📚 Resource Library")
@@ -176,14 +148,14 @@ elif tab == "🏛️ Govt Schemes":
     central_schemes = get_central_schemes()
     choice = st.radio("Category", ["State", "Central"], horizontal=True)
     if choice == "State":
-        s = state_schemes.get(st_loc, {"name": "Assistance", "desc": "Visit office", "link": "#"})
+        s = state_schemes.get(st_loc, {"name": "Assistance", "desc": "Visit local office", "link": "#"})
         st.markdown(f'<div class="scheme-card"><h2>🌟 {s["name"]}</h2><p>{s["desc"]}</p><a href="{s["link"]}" target="_blank" style="color:#ff9800; font-weight:bold;">🔗 Open Portal</a></div>', unsafe_allow_html=True)
     else:
         for cs in central_schemes:
             st.markdown(f'<div class="main-card" style="border-left: 8px solid #2e7d32;"><h3>🏢 {cs["name"]}</h3><p>{cs["desc"]}</p></div>', unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
-    st.title("📈 Price Calculator")
+    st.title("📈 Market Insights")
     if all_crops:
         crop_names = [c['Crop'] for c in all_crops]
         sel_crop = st.selectbox("Select Crop", crop_names)
@@ -191,14 +163,14 @@ elif tab == "📈 Price Trends":
         season_sel = st.selectbox("Tag Season", ["Kharif", "Rabi", "Zaid"])
         base_price = 2000 + (hash(sel_crop) % 4000)
         total_val = base_price * weight
-        st.metric("Total Value", f"₹{total_val:,.2f}")
-        if st.button("📓 Save to Agri Khata"):
+        st.metric("Estimated Market Value", f"₹{total_val:,.2f}")
+        if st.button("📓 Add to Agri Khata"):
             add_entry("Income (Sale)", sel_crop, weight, total_val, season_sel)
-            st.toast("Saved!")
+            st.toast("Saved to Ledger!")
         
         months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
         trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
-        fig = px.line(pd.DataFrame({"Month": months, "Price": trend_prices}), x="Month", y="Price", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
+        fig = px.line(pd.DataFrame({"Month": months, "Price": trend_prices}), x="Month", y="Price", markers=True, color_discrete_sequence=["#2e7d32"])
         fig.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), plot_bgcolor='white')
         st.plotly_chart(fig, use_container_width=True)
 
