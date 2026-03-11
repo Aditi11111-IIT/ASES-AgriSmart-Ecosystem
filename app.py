@@ -80,7 +80,7 @@ with st.sidebar:
         except:
             st.error("Connection Error")
 
-# --- 4. TAB LOGIC ---
+# --- 4. TAB LOGIC (RESTORING ORIGINAL SOURCE SECTIONS) ---
 
 if tab == "🏠 Dashboard":
     st.title("👨‍🌾 Command Center")
@@ -88,109 +88,92 @@ if tab == "🏠 Dashboard":
     c1.metric("Temperature", f"{st.session_state.get('temp', 25)}°C")
     c2.metric("Humidity", f"{st.session_state.get('hum', 50)}%")
     c3.metric("Location", f"{dt_loc}, {st_loc}")
-    
-    st.markdown(f'''
-        <div class="main-card" style="border-left: 8px solid #ff9800;">
-            <h3>Welcome to Agri-Smart Ecosystem</h3>
-            <p>Currently monitoring <b>{dt_loc}</b>. Use the sidebar to access specialized farming services.</p>
-        </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><b>Status:</b> Currently tracking {dt_loc} region.</div>', unsafe_allow_html=True)
 
 elif tab == "🌾 Crop Engine":
     st.title("🌾 Smart Crop Recommendations")
     df, le_encoder = get_agri_dataframe()
     budget = st.slider("Investment Budget (₹/Acre)", 5000, 100000, 20000)
     soil_type = st.selectbox("Soil Type", ["Alluvial", "Black", "Red", "Sandy", "Loamy"])
-    
     if st.button("🚀 Analyze Best Crops"):
         recs = recommend_crops(df, le_encoder, soil_type, budget)
-        if not recs.empty:
-            for _, row in recs.iterrows():
-                st.markdown(f'''
-                    <div class="main-card">
-                        <h4>{row["Crop Name"]}</h4>
-                        <p><b>Estimated Cost:</b> ₹{row["Cost per Acre"]}<br>
-                        <b>Potential Yield:</b> {row.get("Yield", "High")}</p>
-                    </div>
-                ''', unsafe_allow_html=True)
-        else:
-            st.warning("No crops found for this budget/soil combination.")
+        st.dataframe(recs, use_container_width=True)
 
 elif tab == "🚜 Rental Hub":
     st.title("🚜 Equipment Rental Marketplace")
-    machines = {
-        "Tractor": {"price": "₹800/hr", "img": "🚜"},
-        "Harvester": {"price": "₹1500/hr", "img": "🌾"},
-        "Drone Sprayer": {"price": "₹500/acre", "img": "🚁"}
-    }
-    for name, info in machines.items():
-        with st.container():
-            st.markdown(f'''
-                <div class="main-card">
-                    <h3>{info["img"]} {name}</h3>
-                    <p>Price: <b>{info["price"]}</b></p>
-                    <button style="width:100%; padding:10px; background:#2e7d32; color:white; border:none; border-radius:5px;">Book Now</button>
-                </div>
-            ''', unsafe_allow_html=True)
+    st.markdown("### Available Machinery near " + dt_loc)
+    # Matching original logic: List view with selection
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        selected_machine = st.selectbox("Select Equipment", ["Tractor (50HP)", "Harvester", "Plow", "Power Tiller", "Drone Sprayer"])
+    with col2:
+        st.markdown(f'''<div class="main-card">
+            <h4>{selected_machine} Details</h4>
+            <p>Rental Cost: ₹800 - ₹2500 per unit/day<br>
+            Availability: <b>In Stock</b></p>
+            </div>''', unsafe_allow_html=True)
+    if st.button("Confirm Booking Request"):
+        st.success(f"Request for {selected_machine} sent to vendors in {dt_loc}!")
 
 elif tab == "📚 Knowledge Hub":
-    st.title("📚 Farming Knowledge Base")
-    category = st.selectbox("Topic", ["Pest Control", "Organic Farming", "Irrigation Tech"])
-    articles = {
-        "Pest Control": "Use Neem oil spray (5ml/L) for natural aphid control...",
-        "Organic Farming": "Composting requires a 30:1 Carbon to Nitrogen ratio...",
-        "Irrigation Tech": "Drip irrigation can save up to 40% water in {st_loc}."
-    }
-    st.markdown(f'<div class="main-card">{articles[category]}</div>', unsafe_allow_html=True)
+    st.title("📚 Crop Knowledge Base")
+    # Restoring original crop master search
+    search_crop = st.selectbox("Search Crop Details", all_crops if all_crops else ["Wheat", "Rice", "Maize"])
+    st.markdown(f"""
+        <div class="main-card">
+            <h3>Standard Guidelines for {search_crop}</h3>
+            <ul>
+                <li><b>Ideal Temperature:</b> 15°C - 25°C</li>
+                <li><b>Water Requirement:</b> Moderate to High</li>
+                <li><b>Best Sowing Month:</b> October - November (Rabi)</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
 
 elif tab == "🏛️ Govt Schemes":
     st.title("🏛️ Government Schemes")
     state_schemes = get_state_schemes()
     central_schemes = get_central_schemes()
-    
-    cat = st.radio("Filter", ["State-Specific", "Central"], horizontal=True)
-    if cat == "State-Specific":
-        scheme = state_schemes.get(st_loc, {"name": "Local Support", "desc": "Visit your District Agriculture Office."})
-        st.markdown(f'<div class="main-card" style="border-left: 8px solid #ff9800;"><h4>{scheme["name"]}</h4><p>{scheme["desc"]}</p></div>', unsafe_allow_html=True)
+    cat = st.radio("Category", ["State", "Central"], horizontal=True)
+    if cat == "State":
+        s = state_schemes.get(st_loc, {"name": "General Farmer Support", "desc": "Contact local District office."})
+        st.markdown(f'<div class="main-card"><b>{s["name"]}</b><br>{s["desc"]}</div>', unsafe_allow_html=True)
     else:
         for s in central_schemes:
             st.markdown(f'<div class="main-card"><b>{s["name"]}</b>: {s["desc"]}</div>', unsafe_allow_html=True)
 
 elif tab == "📈 Price Trends":
-    st.title("📈 Mandi Price Insights")
-    st.info(f"Showing estimated trends for {dt_loc}")
-    # Placeholder chart for price trends
-    chart_data = pd.DataFrame({"Month": ["Jan", "Feb", "Mar"], "Price": [2100, 2250, 2180]})
-    fig = px.line(chart_data, x="Month", y="Price", title="Wheat Price Trend (₹/Quintal)")
+    st.title("📈 Mandi Price Trends")
+    st.markdown(f"**Live Market Data Simulation for {dt_loc}**")
+    # Restoring Plotly Line Chart from source
+    trend_data = pd.DataFrame({
+        "Month": ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb"],
+        "Price": [2150, 2200, 2180, 2300, 2450, 2400]
+    })
+    fig = px.line(trend_data, x="Month", y="Price", title=f"Price Trend (₹/Quintal)", markers=True)
+    fig.update_traces(line_color='#2e7d32')
     st.plotly_chart(fig, use_container_width=True)
+    
 
 elif tab == "📒 Agri Khata":
     st.title("📒 Seasonal Digital Ledger")
-    filter_season = st.selectbox("🔍 View Records", ["All Seasons", "Kharif", "Rabi", "Zaid"])
-    
+    filter_season = st.selectbox("Filter Records", ["All", "Kharif", "Rabi", "Zaid"])
     conn = sqlite3.connect('agri_khata.db')
-    query = "SELECT * FROM ledger" if filter_season == "All Seasons" else f"SELECT * FROM ledger WHERE season='{filter_season}'"
+    query = "SELECT * FROM ledger" if filter_season == "All" else f"SELECT * FROM ledger WHERE season='{filter_season}'"
     df_ledger = pd.read_sql_query(query, conn)
     conn.close()
     
     if not df_ledger.empty:
-        inc = df_ledger[df_ledger['type'].str.contains('Income')]['total'].sum()
-        exp = df_ledger[df_ledger['type'].str.contains('Expense')]['total'].sum()
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Revenue", f"₹{inc:,.0f}")
-        c2.metric("Investment", f"₹{exp:,.0f}")
-        c3.metric("Net Profit", f"₹{inc - exp:,.0f}")
         st.dataframe(df_ledger, use_container_width=True)
     else:
-        st.info("No records found for this selection.")
+        st.info("No records found.")
 
-    with st.expander("➕ Add Transaction"):
-        with st.form("khata_form"):
-            t_type = st.selectbox("Type", ["Income (Sales)", "Expense (Seeds)", "Expense (Labor)", "Expense (Machinery)"])
-            item = st.text_input("Item Description")
-            amt = st.number_input("Amount (₹)", min_value=0.0)
+    with st.expander("Add Entry"):
+        with st.form("ledger"):
+            t = st.selectbox("Type", ["Income", "Expense"])
+            item = st.text_input("Item")
+            val = st.number_input("Amount")
             szn = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
-            if st.form_submit_button("Save Transaction"):
-                add_entry(t_type, item, "1", amt, szn)
-                st.success("Record Saved!")
+            if st.form_submit_button("Save"):
+                add_entry(t, item, "1", val, szn)
                 st.rerun()
