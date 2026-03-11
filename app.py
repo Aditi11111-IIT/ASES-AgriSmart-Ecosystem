@@ -2,149 +2,208 @@ import streamlit as st
 import pandas as pd
 import random
 import urllib.parse
+from fpdf import FPDF
 import plotly.express as px
+import numpy as np
 import requests
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import LabelEncoder
 
-# --- 1. PAGE CONFIG ---
-st.set_page_config(page_title="Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
+# --- 1. CONFIGURATION & STYLING ---
+st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
 # 🔑 OpenWeatherMap API Key
 API_KEY = "886705b4c1182ebf6969f51d03f973f9"
 
-# --- 2. SESSION STATE ---
-if 'temp' not in st.session_state: st.session_state.temp = 25
-if 'hum' not in st.session_state: st.session_state.hum = 50
-if 'ledger' not in st.session_state: 
-    st.session_state.ledger = pd.DataFrame([{"Item": "Seeds (बीज)", "Cost": 1200}])
-
-# --- 3. CUSTOM STYLING ---
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
-    .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; }
+    .main-card { 
+        padding: 25px; border-radius: 12px; 
+        background-color: #FFFFFF !important; 
+        border: 1px solid #2481CC; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        margin-bottom: 20px;
+    }
+    .main-card h3, .main-card p { color: #1c1c1c !important; }
+    .highlight-text { color: #2481CC !important; font-weight: bold; }
+    .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; width: 100%; }
     .call-btn {
-        background-color: #1b5e20; color: white; padding: 10px;
-        text-align: center; border-radius: 5px; text-decoration: none;
-        display: block; font-weight: bold; margin-bottom: 5px;
+        background-color: #28a745 !important; color: white !important;
+        padding: 12px; border-radius: 8px; text-decoration: none;
+        display: block; text-align: center; font-weight: bold; margin-top: 10px;
     }
     .wa-btn {
         background-color: #25D366; color: white; padding: 10px;
         text-align: center; border-radius: 5px; text-decoration: none;
-        display: block; font-weight: bold;
+        display: block; font-weight: bold; margin-top: 5px;
     }
+    [data-testid="stSidebar"] { background-color: #243139 !important; }
+    [data-testid="stSidebar"] * { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. DATA ENGINE (RENTAL) ---
+# --- 2. DATA ENGINES ---
 @st.cache_data
-def get_rental_data(district):
-    data = []
-    items = ["Mahindra Tractor (ट्रैक्टर)", "Harvester (हार्वेस्टर)", "Rotavator (रोटावेटर)", "Drone (ड्रोन)"]
-    names = ["Sandeep Singh", "Rajesh Kumar", "Anjali Reddy", "Gurnam Patil", "Amit Verma"]
-    for i in range(8):
-        data.append({
-            "Item": random.choice(items), "Owner": random.choice(names),
-            "District": district, "Phone": f"+91{random.randint(7000000000, 9999999999)}",
-            "Price": f"₹{random.randint(500, 3000)}/hr"
-        })
-    return pd.DataFrame(data)
+def load_agri_data():
+    crops = {
+        'Crop Name': ['Wheat', 'Rice', 'Cotton', 'Maize', 'Groundnut', 'Soybean', 'Mustard', 'Sugarcane', 'Chickpea', 'Potato'],
+        'Soil Type': ['Alluvial', 'Alluvial', 'Black Soil', 'Red Soil', 'Sandy', 'Black Soil', 'Alluvial', 'Loamy', 'Heavy Soil', 'Sandy Loam'],
+        'Water Requirement': [500, 1200, 800, 600, 400, 700, 450, 1500, 300, 550],
+        'Sowing Month': [11, 6, 6, 6, 5, 6, 10, 2, 10, 10],
+        'Cost per Acre': [15000, 25000, 20000, 12000, 18000, 16000, 14000, 30000, 13000, 35000]
+    }
+    pest_data = {
+        'Crop': ['Wheat', 'Rice', 'Cotton', 'Sugarcane', 'Mustard', 'Potato'],
+        'Common Pest': ['Rust/Aphids', 'Stem Borer', 'Bollworm', 'Red Rot', 'Aphids', 'Blight'],
+        'Fertilizer': ['NPK 12:32:16', 'Urea + Zinc', 'DAP + Potash', 'Nitrogen Rich', 'NPK + Sulphur', 'NPK + Potash'],
+        'Pesticide': ['Tilt', 'Chlorpyrifos', 'Spinosad', 'Carbendazim', 'Dimethoate', 'Mancozeb']
+    }
+    return pd.DataFrame(crops), pd.DataFrame(pest_data)
 
-# --- 5. SIDEBAR & LOCATION ---
+df, pest_df = load_agri_data()
+le = LabelEncoder()
+df['Soil_Idx'] = le.fit_transform(df['Soil Type'])
+
+# --- 3. SESSION STATE ---
+if 'temp' not in st.session_state: st.session_state.temp = 25
+if 'hum' not in st.session_state: st.session_state.hum = 50
+if 'soil' not in st.session_state: st.session_state.soil = "Alluvial"
+if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
+if 'ledger' not in st.session_state: st.session_state.ledger = pd.DataFrame([{"Item": "Seed Purchase", "Cost": 1200}])
+
+# --- 4. NAVIGATION & LOCATION ---
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
     st.title("ASES NAVIGATION")
-    lang = st.radio("भाषा चुनें / Select Language", ["Hindi", "English"], horizontal=True)
+    lang = st.radio("Language / भाषा", ["English", "Hindi"], horizontal=True)
+    tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🛡️ Pest & Fertilizer", "🚜 Rental Hub", "📚 Knowledge Hub", "📈 Price Prediction", "📒 Agri Khata"])
     
-    # Translation Dictionary
-    t = {
-        "menu": ["🏠 डैशबोर्ड", "🚜 रेंटल हब", "📚 ज्ञान केंद्र", "📈 मूल्य पूर्वानुमान", "📒 एग्री खाता"] if lang == "Hindi" else ["🏠 Dashboard", "🚜 Rental Hub", "📚 Knowledge Hub", "📈 Price Prediction", "📒 Agri Khata"],
-        "state": "अपना राज्य चुनें" if lang == "Hindi" else "Select State",
-        "dist": "अपना जिला चुनें" if lang == "Hindi" else "Select District",
-        "update": "मौसम अपडेट करें" if lang == "Hindi" else "Update Weather",
-        "call": "📞 कॉल करें" if lang == "Hindi" else "📞 Call Owner",
-        "wa": "💬 व्हाट्सएप" if lang == "Hindi" else "💬 WhatsApp",
-        "expense": "खर्च का विवरण" if lang == "Hindi" else "Expense Item",
-        "cost": "लागत (₹)" if lang == "Hindi" else "Cost (₹)",
-        "add": "एंट्री जोड़ें" if lang == "Hindi" else "Add Entry"
-    }
-
-    menu = st.radio("सेवा चुनें", t["menu"])
     st.markdown("---")
-    
     india_map = {
-        "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur"],
-        "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
-        "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Meerut"],
-        "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik"]
-    } # Adding truncated map for brevity, you can keep your full map here
+        "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Tirupati"],
+        "Arunachal Pradesh": ["Itanagar", "Tawang", "Ziro", "Pasighat"],
+        "Assam": ["Guwahati", "Dibrugarh", "Silchar", "Jorhat", "Tezpur"],
+        "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga"],
+        "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba"],
+        "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa"],
+        "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar"],
+        "Haryana": ["Gurgaon", "Faridabad", "Panipat", "Ambala", "Hisar"],
+        "Himachal Pradesh": ["Shimla", "Manali", "Dharamshala", "Solan"],
+        "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro"],
+        "Karnataka": ["Bengaluru", "Mysuru", "Hubballi", "Belagavi", "Mangaluru"],
+        "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur"],
+        "Madhya Pradesh": ["Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain"],
+        "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad"],
+        "Manipur": ["Imphal", "Churachandpur", "Thoubal"],
+        "Meghalaya": ["Shillong", "Tura", "Jowai"],
+        "Mizoram": ["Aizawl", "Lunglei", "Champhai"],
+        "Nagaland": ["Kohima", "Dimapur", "Mokokchung"],
+        "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Sambalpur"],
+        "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda"],
+        "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Bikaner"],
+        "Sikkim": ["Gangtok", "Namchi", "Geyzing"],
+        "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem"],
+        "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Khammam"],
+        "Tripura": ["Agartala", "Udaipur", "Dharmanagar"],
+        "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Meerut", "Prayagraj"],
+        "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani"],
+        "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Siliguri", "Asansol"],
+        "A&N Islands": ["Port Blair"], "Chandigarh": ["Chandigarh"],
+        "Dadra & Nagar Haveli": ["Silvassa"], "Daman & Diu": ["Daman", "Diu"],
+        "Delhi": ["New Delhi", "North Delhi", "South Delhi", "West Delhi"],
+        "Jammu & Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla"],
+        "Ladakh": ["Leh", "Kargil"], "Lakshadweep": ["Kavaratti"],
+        "Puducherry": ["Puducherry", "Karaikal"]
+    }
+    st_loc = st.selectbox("Your State", list(india_map.keys()))
+    dt_loc = st.selectbox("Your District", india_map[st_loc])
     
-    st_loc = st.selectbox(t["state"], list(india_map.keys()))
-    dt_loc = st.selectbox(t["dist"], india_map[st_loc])
-    
-    if st.button(t["update"]):
+    if st.button("Update Local Weather"):
         try:
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={dt_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
             st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-            st.success("सफलतापूर्वक अपडेट किया गया!" if lang == "Hindi" else "Weather Synced!")
-        except: st.error("API Error")
+            st.success("Weather Synced!")
+        except: st.error("Weather API Error")
 
-# --- 6. MODULES ---
+# --- 5. TABS LOGIC ---
 
-if menu in ["🏠 डैशबोर्ड", "🏠 Dashboard"]:
-    st.title(f"👨‍🌾 कमांड सेंटर: {dt_loc}")
+if tab == "🏠 Dashboard":
+    st.title(f"👨‍🌾 Command Center: {dt_loc}")
     col1, col2, col3 = st.columns(3)
-    col1.metric("तापमान (Temperature)", f"{st.session_state.temp}°C")
-    col2.metric("नमी (Humidity)", f"{st.session_state.hum}%")
-    col3.metric("मिट्टी की स्थिति", "बेहतर (Optimal)")
-    st.info("💡 **सलाह:** वर्तमान मौसम रबी फसलों की बुवाई के लिए अनुकूल है।" if lang == "Hindi" else "💡 **Pro-Tip:** Current weather is ideal for Rabi sowing.")
+    col1.metric("Temperature", f"{st.session_state.temp}°C")
+    col2.metric("Humidity", f"{st.session_state.hum}%")
+    col3.metric("Soil Health", "Good (85%)")
+    st.warning("⚠️ Rain expected in 48 hours. Postpone fertilizer application.")
 
-elif menu in ["🚜 रेंटल हब", "🚜 Rental Hub"]:
-    st.title("🚜 कृषि मशीनरी रेंटल")
-    df = get_rental_data(dt_loc)
-    for _, row in df.iterrows():
-        with st.container():
-            c1, c2 = st.columns([3, 1])
-            c1.markdown(f"### {row['Item']}\n👤 मालिक: {row['Owner']} | 💰 किराया: {row['Price']}\n📍 जिला: {row['District']}")
-            c2.markdown(f'<a href="tel:{row["Phone"]}" class="call-btn">{t["call"]}</a>', unsafe_allow_html=True)
-            wa_msg = urllib.parse.quote(f"नमस्ते {row['Owner']}, मुझे आपके {row['Item']} की आवश्यकता है।")
-            c2.markdown(f'<a href="https://wa.me/{row["Phone"].replace("+","")}?text={wa_msg}" class="wa-btn">{t["wa"]}</a>', unsafe_allow_html=True)
-            st.divider()
+elif tab == "🌾 Crop Engine":
+    st.title("AgriAI Smart Recommendations")
+    soil_opts = ["Alluvial", "Black Soil", "Red Soil", "Sandy"]
+    s_cols = st.columns(4)
+    for i, s in enumerate(soil_opts):
+        if s_cols[i].button(s): st.session_state.soil = s
+    st.markdown(f"<b>Current Soil:</b> <span class='highlight-text'>{st.session_state.soil}</span>", unsafe_allow_html=True)
+    bud = st.slider("Investment Budget (₹/Acre)", 5000, 50000, 15000)
+    
+    if st.button("🚀 FIND BEST CROPS"):
+        X = df[['Soil_Idx', 'Sowing Month', 'Cost per Acre']]
+        knn = NearestNeighbors(n_neighbors=2).fit(X)
+        u_idx = le.transform([st.session_state.soil])[0]
+        _, idx = knn.kneighbors([[u_idx, 6, bud]])
+        recs = df.iloc[idx[0]]
+        for i, row in recs.iterrows():
+            st.markdown(f'<div class="main-card"><h3>{row["Crop Name"]}</h3><p>Est. Cost: ₹{row["Cost per Acre"]}</p></div>', unsafe_allow_html=True)
 
-elif menu in ["📚 ज्ञान केंद्र", "📚 Knowledge Hub"]:
-    st.title("📚 फसल जानकारी केंद्र")
+elif tab == "🛡️ Pest & Fertilizer":
+    st.title("Protection & Nutrition Hub")
+    target_crop = st.selectbox("Select Crop", pest_df['Crop'].unique())
+    data = pest_df[pest_df['Crop'] == target_crop].iloc[0]
     
-    crops_en = [
-        {"Crop": "Wheat", "Type": "Cereal", "Season": "Rabi", "Soil": "Loamy", "Water": "Moderate", "Pest": "Aphids", "Fertilizer": "NPK 120:60:40", "Pro-Tip": "Provide irrigation at CRI stage."},
-        {"Crop": "Rice", "Type": "Cereal", "Season": "Kharif", "Soil": "Clayey", "Water": "High", "Pest": "Stem Borer", "Fertilizer": "NPK 100:60:40", "Pro-Tip": "Keep standing water during tillering."},
-        {"Crop": "Mustard", "Type": "Oilseed", "Season": "Rabi", "Soil": "Sandy Loam", "Water": "Low", "Pest": "Aphids", "Fertilizer": "NPK + Sulphur", "Pro-Tip": "Sow before Oct 15 to avoid pests."},
-        {"Crop": "Sugarcane", "Type": "Cash", "Season": "Annual", "Soil": "Alluvial", "Water": "High", "Pest": "Pyrilla", "Fertilizer": "Nitrogen High", "Pro-Tip": "Earthing up prevents lodging."}
-    ]
+    c1, c2 = st.columns(2)
+    c1.markdown(f'<div class="main-card"><h3>🛡️ Pest: {data["Common Pest"]}</h3><p>Use: {data["Pesticide"]}</p></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="main-card"><h3>🧪 Fertilizer: {data["Fertilizer"]}</h3></div>', unsafe_allow_html=True)
+
+elif tab == "🚜 Rental Hub":
+    st.title(f"🚜 Rental Machinery Desk: {dt_loc}")
+    machine_types = {
+        "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
+        "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
+        "Harvesting": [("Combine Harvester", "🌾✨"), ("Thresher", "🌪️")]
+    }
+    m_tabs = st.tabs(list(machine_types.keys()))
+    for i, category in enumerate(machine_types.keys()):
+        with m_tabs[i]:
+            m_cols = st.columns(2)
+            for idx, (m_name, m_icon) in enumerate(machine_types[category]):
+                if m_cols[idx % 2].button(f"{m_icon} {m_name}", key=f"rent_{m_name}"):
+                    st.session_state.selected_machine = m_name
+
+    st.markdown(f"**Currently Finding:** <span class='highlight-text'>{st.session_state.selected_machine}</span>", unsafe_allow_html=True)
     
-    crops_hi = [
-        {"फसल": "गेहूं", "प्रकार": "अनाज", "सीजन": "रबी", "मिट्टी": "दोमट", "पानी": "मध्यम", "कीट": "माहू", "उर्वरक": "NPK 120:60:40", "प्रो-टिप": "CRI अवस्था पर सिंचाई जरूर करें।"},
-        {"फसल": "धान", "प्रकार": "अनाज", "सीजन": "खरीफ", "मिट्टी": "चिकनी", "पानी": "अधिक", "कीट": "तना छेदक", "उर्वरक": "NPK 100:60:40", "प्रो-टिप": "कल्ले फूटते समय खेत में पानी रखें।"},
-        {"फसल": "सरसों", "प्रकार": "तिलहन", "सीजन": "रबी", "मिट्टी": "बलुई दोमट", "पानी": "कम", "कीट": "चेपा/माहू", "उर्वरक": "NPK + सल्फर", "प्रो-टिप": "कीटों से बचने के लिए 15 अक्टूबर से पहले बोएं।"},
-        {"फसल": "गन्ना", "प्रकार": "नकदी", "सीजन": "वार्षिक", "मिट्टी": "जलोढ़", "पानी": "अधिक", "कीट": "पायरीला", "उर्वरक": "नाइट्रोजन अधिक", "प्रो-टिप": "मिट्टी चढ़ाने से फसल गिरती नहीं है।"}
-    ]
+    # Member 4 Integration: Link to Google Maps
+    search_query = f"{st.session_state.selected_machine}+Rental+in+{dt_loc}+{st_loc}"
+    google_url = f"https://www.google.com/search?q={search_query}"
+    st.link_button(f"🔍 Search Commercial {st.session_state.selected_machine} Centers", google_url, use_container_width=True)
     
+    st.markdown(f'<a href="tel:18001801551" class="call-btn" style="background:#ffc107 !important; color:black !important;">📞 Call Govt CHC Helpline</a>', unsafe_allow_html=True)
+
+elif tab == "📚 Knowledge Hub":
+    st.title("📚 Crop Resource Library")
+    crops_en = [{"Crop": "Wheat", "N-P-K": "120:60:40", "Soil": "Loamy"}, {"Crop": "Rice", "N-P-K": "100:60:40", "Soil": "Clayey"}]
+    crops_hi = [{"फसल": "गेहूं", "N-P-K": "120:60:40", "मिट्टी": "दोमट"}, {"फसल": "धान", "N-P-K": "100:60:40", "मिट्टी": "चिकनी"}]
     st.table(pd.DataFrame(crops_hi if lang == "Hindi" else crops_en))
-    
-    st.subheader("पोषक तत्वों की पहचान (Nutrient Identification)")
-    
 
-elif menu in ["📈 मूल्य पूर्वानुमान", "📈 Price Prediction"]:
-    st.title("📈 बाजार भाव पूर्वानुमान (2026)")
-    df_p = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Price": [random.randint(2200, 2700) for _ in range(6)]})
-    st.plotly_chart(px.line(df_p, x="Month", y="Price", title="अनुमानित मूल्य रुझान (Predicted Price Trend)"))
+elif tab == "📈 Price Prediction":
+    st.title("📈 AI Market Price Prediction")
+    df_p = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Price": [random.randint(2100, 2600) for _ in range(6)]})
+    st.plotly_chart(px.line(df_p, x="Month", y="Price", markers=True, title="Forecasted Trend"))
 
-elif menu in ["📒 एग्री खाता", "📒 Agri Khata"]:
-    st.title("📒 डिजिटल एग्री खाता")
-    with st.form("ledger_form", clear_on_submit=True):
-        item = st.text_input(t["expense"])
-        cost = st.number_input(t["cost"], 0)
-        if st.form_submit_button(t["add"]):
-            new_row = pd.DataFrame([{"Item": item, "Cost": cost}])
-            st.session_state.ledger = pd.concat([st.session_state.ledger, new_row], ignore_index=True)
-            st.rerun()
-    st.plotly_chart(px.pie(st.session_state.ledger, values='Cost', names='Item', title="खर्चों का विश्लेषण (Expense Analysis)"))
+elif tab == "📒 Agri Khata":
+    st.title("📒 Agri Khata (Financials)")
+    with st.form("ledger"):
+        item = st.text_input("Expense Item")
+        cost = st.number_input("Cost (₹)", 0)
+        if st.form_submit_button("Add Entry"):
+            st.session_state.ledger = pd.concat([st.session_state.ledger, pd.DataFrame([{"Item": item, "Cost": cost}])], ignore_index=True)
+    st.plotly_chart(px.pie(st.session_state.ledger, values='Cost', names='Item'))
