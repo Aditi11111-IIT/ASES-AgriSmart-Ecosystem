@@ -5,133 +5,206 @@ import urllib.parse
 from fpdf import FPDF
 import plotly.express as px
 import numpy as np
-import requests
-from PIL import Image
 
 # --- 1. PAGE CONFIG & STYLING ---
 st.set_page_config(page_title="Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 Official Weather API Key
-API_KEY = "886705b4c1182ebf6969f51d03f973f9" 
+st.markdown("""
+    <style>
+    .main { background-color: #f0f2f6; }
+    .stButton>button { width: 100%; border-radius: 8px; background-color: #2e7d32; color: white; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #2e7d32; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 2. MULTILINGUAL DICTIONARY ---
-LANG_DATA = {
-    "English": {
-        "title": "Agri-Smart Ecosystem", "sidebar_header": "🌿 Navigation", "dashboard": "🏠 Dashboard",
-        "seed": "✅ Seed Checker", "lab": "🔬 Soil Lab Locator", "expert": "📞 Expert Sahayata",
-        "news": "📰 Agri-News", "mandi": "🏪 Mandi Rates", "pest": "🐛 Pest Diagnostic",
-        "soil": "🧪 Soil Analysis", "rental": "🏪 Rental Hub", "govt": "🏛️ Govt Schemes",
-        "knowledge": "📚 Knowledge Hub", "price": "📈 Price Prediction", "khata": "📒 Agri Khata",
-        "weather_city": "Enter City for Live Weather", "temp": "Temperature", "humid": "Humidity",
-        "wind": "Wind Speed", "seed_btn": "Verify Certification", "expert_call": "Toll-Free Kisan Call Center",
-        "pest_res": "Pink Bollworm detected. Spray Spinosad 45 SC."
-    },
-    "Hindi": {
-        "title": "एग्री-स्मार्ट इकोसिस्टम", "sidebar_header": "🌿 नेविगेशन", "dashboard": "🏠 डैशबोर्ड",
-        "seed": "✅ बीज जांचक", "lab": "🔬 मृदा लैब लोकेटर", "expert": "📞 विशेषज्ञ सहायता",
-        "news": "📰 कृषि समाचार", "mandi": "🏪 मंडी दरें", "pest": "🐛 कीट निदान",
-        "soil": "🧪 मिट्टी परीक्षण", "rental": "🏪 रेंटल हब", "govt": "🏛️ सरकारी योजनाएं",
-        "knowledge": "📚 ज्ञान केंद्र", "price": "📈 मूल्य भविष्यवाणी", "khata": "📒 कृषि खाता",
-        "weather_city": "लाइव मौसम के लिए शहर दर्ज करें", "temp": "तापमान", "humid": "नमी",
-        "wind": "हवा की गति", "seed_btn": "प्रमाणन सत्यापित करें", "expert_call": "टोल-फ्री किसान कॉल सेंटर",
-        "pest_res": "गुलाबी सुंडी पाई गई। स्पिनोसैड 45 SC का छिड़काव करें।"
-    },
-    "Punjabi": {
-        "title": "ਐਗਰੀ-ਸਮਾਰਟ ਈਕੋਸਿਸਟਮ", "sidebar_header": "🌿 ਨੈਵੀਗੇਸ਼ਨ", "dashboard": "🏠 ਡੈਸ਼ਬੋਰਡ",
-        "seed": "✅ ਬੀਜ ਜਾਂਚਕਰਤਾ", "lab": "🔬 ਮਿੱਟੀ ਲੈਬ ਲੋਕੇਟਰ", "expert": "📞 ਮਾਹਿਰ ਸਹਾਇਤਾ",
-        "news": "📰 ਖੇਤੀਬਾੜੀ ਖ਼ਬਰਾਂ", "mandi": "🏪 ਮੰਡੀ ਦੀਆਂ ਕੀਮਤਾਂ", "pest": "🐛 ਕੀੜੇ ਨਿਦਾਨ",
-        "soil": "🧪 ਮਿੱਟੀ ਵਿਸ਼ਲੇਸ਼ਣ", "rental": "🏪 ਰੈਂਟਲ ਹਬ", "govt": "🏛️ ਸਰਕਾਰੀ ਸਕੀਮਾਂ",
-        "knowledge": "📚 ਗਿਆਨ ਕੇਂਦਰ", "price": "📈 ਕੀਮਤ ਭਵਿੱਖਬਾਣੀ", "khata": "📒 ਖੇਤੀ ਖਾਤਾ",
-        "weather_city": "ਲਾਈਵ ਮੌਸਮ ਲਈ ਸ਼ਹਿਰ ਦਰਜ ਕਰੋ", "temp": "ਤਾਪਮਾਨ", "humid": "ਨਮੀ",
-        "wind": "ਹਵਾ ਦੀ ਗਤੀ", "seed_btn": "ਪ੍ਰਮਾਣੀਕਰਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ", "expert_call": "ਟੋਲ-ਫ੍ਰੀ ਕਿਸਾਨ ਕਾਲ ਸੈਂਟਰ",
-        "pest_res": "ਗੁਲਾਬੀ ਸੁੰਡੀ ਲੱਭੀ ਗਈ। ਸਪਿਨੋਸੈਡ 45 SC ਦਾ ਛਿੜਕਾਅ ਕਰੋ।"
-    }
-}
-
-st.sidebar.title("🌍 Language / भाषा / ਭਾਸ਼ਾ")
-selected_lang = st.sidebar.selectbox("Choose Language", ["English", "Hindi", "Punjabi"])
-t = LANG_DATA[selected_lang]
-
-st.markdown("""<style>.stButton>button { background-color: #2e7d32; color: white; }</style>""", unsafe_allow_html=True)
-
-# --- 3. CORE FUNCTIONS ---
+# --- 2. DATA ENGINES ---
 
 @st.cache_data
-def get_weather_data(city):
-    try:
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
-        response = requests.get(url).json()
-        if response.get("cod") != 200: return None
-        return {"temp": response["main"]["temp"], "desc": response["weather"][0]["description"].capitalize(), "hum": response["main"]["humidity"], "wind": response["wind"]["speed"]}
-    except: return None
+def get_national_rental_data():
+    state_map = {
+        "Punjab": ["Ludhiana", "Amritsar", "Patiala"],
+        "Bihar": ["Patna", "Gaya", "Muzaffarpur"],
+        "Maharashtra": ["Pune", "Nashik", "Nagpur"],
+        "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi"],
+        "Karnataka": ["Bengaluru", "Mysuru", "Hubballi"],
+        "Gujarat": ["Ahmedabad", "Surat", "Rajkot"]
+    }
+    categories = {
+        "🚜 Machinery": ["Tractor", "Harvester", "Rotavator"],
+        "🌱 Seeds": ["Hybrid Wheat", "Basmati Rice", "Bt Cotton"],
+        "🧪 Fertilizers": ["Urea", "DAP", "Potash"]
+    }
+    
+    data = []
+    names = ["Sandeep", "Rajesh", "Anjali", "Gurnam", "Venkat", "Amit"]
+    for state, districts in state_map.items():
+        for dist in districts:
+            for cat, items in categories.items():
+                for item in items:
+                    data.append({
+                        "State": state, "District": dist, "Category": cat, "Item": item,
+                        "Owner": f"{random.choice(names)} {random.choice(['Singh', 'Kumar', 'Reddy', 'Patil'])}",
+                        "Phone": f"+91{random.randint(7000000000, 9999999999)}",
+                        "Price": f"₹{random.randint(400, 5000)}"
+                    })
+    return pd.DataFrame(data)
 
-# --- 4. NAVIGATION ---
-st.sidebar.title(t["sidebar_header"])
-menu = st.sidebar.radio("Go To:", [t["dashboard"], t["seed"], t["lab"], t["expert"], t["news"], t["mandi"], t["pest"], t["soil"], t["rental"], t["govt"], t["knowledge"], t["price"], t["khata"]])
+# --- 3. PDF UTILITY ---
+def export_as_pdf(title, df):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
+    pdf.ln(10)
+    
+    # Table Header
+    pdf.set_font("Arial", 'B', 10)
+    col_width = 190 / len(df.columns)
+    for col in df.columns:
+        pdf.cell(col_width, 10, txt=str(col), border=1)
+    pdf.ln()
+    
+    # Table Body
+    pdf.set_font("Arial", size=9)
+    for i, row in df.iterrows():
+        for item in row:
+            pdf.cell(col_width, 10, txt=str(item)[:20], border=1)
+        pdf.ln()
+    return pdf.output(dest='S').encode('latin-1')
 
-# --- MODULES ---
-if menu == t["dashboard"]:
-    st.title(f"👨‍🌾 {t['dashboard']}")
-    city_input = st.text_input(t["weather_city"], "Ludhiana")
-    w = get_weather_data(city_input)
-    if w:
-        c1, c2, c3 = st.columns(3)
-        c1.metric(t["temp"], f"{w['temp']}°C", w['desc'])
-        c2.metric(t["humid"], f"{w['hum']}%")
-        c3.metric(t["wind"], f"{w['wind']} m/s")
+# --- 4. NAVIGATION SIDEBAR ---
+st.sidebar.title("🌿 Agri-Smart v1.0")
+st.sidebar.info("Empowering Indian Farmers with Technology")
+# Added "📈 Price Prediction" to the menu
+menu = st.sidebar.radio("Go To:", ["🏠 Dashboard", "🏪 Rental & Supply Hub", "📚 Knowledge Hub", "📈 Price Prediction", "📒 Agri Khata"])
 
-elif menu == t["seed"]:
-    st.title(t["seed"])
-    tag = st.text_input("SATHI Batch Number")
-    if st.button(t["seed_btn"]):
-        st.success("✅ Verified: Certified Wheat Seeds (Batch 2026-X)")
+# --- MODULE 1: DASHBOARD ---
+if menu == "🏠 Dashboard":
+    st.title("👨‍🌾 Farmer Command Center")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Weather", "29°C", "Partly Cloudy")
+    col2.metric("Soil Health", "Good", "85% Score")
+    col3.metric("Market Price (Wheat)", "₹2,275/q", "+₹25")
+    
+    st.subheader("⚠️ Smart Alerts")
+    st.warning("Rain expected in 48 hours. Postpone fertilizer application.")
+    st.success("High demand for Mustard in local Mandi. Consider harvesting.")
+
+# --- MODULE 2: RENTAL & SUPPLY HUB ---
+elif menu == "🏪 Rental & Supply Hub":
+    st.title("🛒 National Agri-Market")
+    df_hub = get_national_rental_data()
+    
+    c1, c2, c3 = st.columns(3)
+    with c1: state = st.selectbox("Select State", sorted(df_hub['State'].unique()))
+    with c2: 
+        dists = sorted(df_hub[df_hub['State'] == state]['District'].unique())
+        dist = st.selectbox("Select District", dists)
+    with c3: cat = st.radio("Category", ["🚜 Machinery", "🌱 Seeds", "🧪 Fertilizers"], horizontal=True)
+
+    filtered = df_hub[(df_hub['State'] == state) & (df_hub['District'] == dist) & (df_hub['Category'] == cat)]
+    
+    for _, row in filtered.iterrows():
+        with st.container():
+            res_col1, res_col2 = st.columns([3, 1])
+            with res_col1:
+                st.markdown(f"### {row['Item']}")
+                st.write(f"👤 **Owner:** {row['Owner']} | 💰 **Price:** {row['Price']}")
+                st.caption(f"📍 Location: {row['District']}, {row['State']}")
+            with res_col2:
+                st.markdown(f'<a href="tel:{row["Phone"]}" style="text-decoration:none;"><div style="background:#1b5e20;color:white;padding:8px;border-radius:5px;text-align:center;font-weight:bold;margin-bottom:5px;">📞 Call</div></a>', unsafe_allow_html=True)
+                msg = urllib.parse.quote(f"Hello {row['Owner']}, I saw your {row['Item']} on Agri-Smart.")
+                st.markdown(f'<a href="https://wa.me/{row["Phone"].replace("+","")}?text={msg}" target="_blank" style="text-decoration:none;"><div style="background:#25D366;color:white;padding:8px;border-radius:5px;text-align:center;font-weight:bold;">💬 WhatsApp</div></a>', unsafe_allow_html=True)
+            st.divider()
+
+# --- MODULE 3: KNOWLEDGE HUB ---
+elif menu == "📚 Knowledge Hub":
+    st.title("📚 Crop Resource Library | फसल संसाधन पुस्तकालय")
+    lang = st.radio("Select Language / भाषा चुनें", ["English", "Hindi"], horizontal=True)
+
+    crops_data = {
+        "English": [
+            {"Crop": "Wheat", "N-P-K Ratio": "120:60:40", "Sowing": "Nov-Dec", "Soil": "Loamy", "Pest Control": "Chlorpyrifos"},
+            {"Crop": "Rice", "N-P-K Ratio": "100:60:40", "Sowing": "June-July", "Soil": "Clayey", "Pest Control": "Neem Oil"},
+            {"Crop": "Cotton", "N-P-K Ratio": "100:50:50", "Sowing": "May-June", "Soil": "Black Soil", "Pest Control": "Spinosad"},
+            {"Crop": "Sugarcane", "N-P-K Ratio": "150:80:60", "Sowing": "Jan-March", "Soil": "Alluvial", "Pest Control": "Imidacloprid"}
+        ],
+        "Hindi": [
+            {"फसल": "गेहूं", "N-P-K अनुपात": "120:60:40", "बुवाई": "नवंबर-दिसंबर", "मिट्टी": "दोमट", "कीट नियंत्रण": "क्लोरपायरीफॉस"},
+            {"फसल": "चावल", "N-P-K अनुपात": "100:60:40", "बुवाई": "जून-जुलाई", "मिट्टी": "चिकनी मिट्टी", "कीट नियंत्रण": "नीम का तेल"},
+            {"फसल": "कपास", "N-P-K अनुपात": "100:50:50", "बुवाई": "मई-जून", "मिट्टी": "काली मिट्टी", "कीट नियंत्रण": "स्पिनोसैड"},
+            {"फसल": "गन्ना", "N-P-K अनुपात": "150:80:60", "बुवाई": "जनवरी-मार्च", "मिट्टी": "जलोढ़ मिट्टी", "कीट नियंत्रण": "इमिडाक्लोप्रिड"}
+        ]
+    }
+
+    df_k = pd.DataFrame(crops_data[lang])
+    search_label = "🔍 Search Crop" if lang == "English" else "🔍 फसल खोजें"
+    search_query = st.text_input(search_label)
+    
+    first_col = df_k.columns[0]
+    filtered_df = df_k[df_k[first_col].str.contains(search_query, case=False)]
+
+    st.table(filtered_df)
+
+    btn_label = "📥 Download Chart as PDF" if lang == "English" else "📥 चार्ट को PDF के रूप में डाउनलोड करें"
+    if st.button(btn_label):
+        pdf_data = export_as_pdf("Agri-Knowledge-Chart", filtered_df)
+        st.download_button(label="Click here to Save File", data=pdf_data, file_name="crop_resource_chart.pdf", mime="application/pdf")
+
     
 
-elif menu == t["expert"]:
-    st.title(t["expert"])
-    st.error(f"📞 {t['expert_call']}: **1800-180-1551**")
+    if lang == "English":
+        st.info("💡 **Quick Guide:** N-P-K is vital for growth, Soil type determines water retention, and Pest Control protects yield.")
+    else:
+        st.info("💡 **त्वरित मार्गदर्शिका:** N-P-K वृद्धि के लिए महत्वपूर्ण है, मिट्टी का प्रकार जल धारण निर्धारित करता है, और कीट नियंत्रण उपज की रक्षा करता है।")
 
-elif menu == t["mandi"]:
-    st.title(t["mandi"])
-    st.table(pd.DataFrame({"Market": ["Ludhiana", "Patna"], "Crop": ["Wheat", "Rice"], "Rate": [2275, 2180]}))
-
-elif menu == t["pest"]:
-    st.title(t["pest"])
-    up = st.file_uploader("Upload Image", type=["jpg", "png"])
-    if up: st.error(t["pest_res"])
-
-elif menu == t["soil"]:
-    st.title(t["soil"])
-    ph = st.slider("Soil pH", 4.0, 10.0, 6.5)
+# --- MODULE 4: PRICE PREDICTION (NEW) ---
+elif menu == "📈 Price Prediction":
+    st.title("📈 AI Market Price Prediction")
+    st.subheader("Historical Trends & Future Forecast")
     
-    if st.button("Analyze"): st.success("pH is Optimal.")
+    # Selection of Crop
+    crop_list = ["Wheat", "Rice", "Cotton", "Sugarcane", "Maize", "Mustard"]
+    selected_crop = st.selectbox("Select Crop to Analyze", crop_list)
+    
+    # Generating Simulated Data for 12 months
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    base_prices = {"Wheat": 2100, "Rice": 2400, "Cotton": 6200, "Sugarcane": 320, "Maize": 1900, "Mustard": 5100}
+    
+    base = base_prices[selected_crop]
+    # Simulate a realistic fluctuation (upward trend towards harvest seasons)
+    predicted_prices = [base + (i * random.randint(10, 50)) + random.randint(-100, 100) for i in range(12)]
+    
+    df_price = pd.DataFrame({"Month": months, "Predicted Price (₹)": predicted_prices})
+    
+    # Plotly Line Chart
+    fig = px.line(df_price, x="Month", y="Predicted Price (₹)", 
+                  title=f"12-Month Price Forecast: {selected_crop}",
+                  markers=True, template="plotly_white")
+    fig.update_traces(line_color='#2e7d32', line_width=3)
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Finding the best month to sell
+    max_price = max(predicted_prices)
+    best_month = months[predicted_prices.index(max_price)]
+    
+    st.success(f"✅ **Market Insight:** The best time to sell **{selected_crop}** is predicted to be in **{best_month}** with an expected price of **₹{max_price}/quintal**.")
+    
+    
 
-elif menu == t["lab"]:
-    st.title(t["lab"])
-    st.write("📍 District Soil Testing Lab, Nagpur | 📍 PAU Lab, Ludhiana")
-
-elif menu == t["news"]:
-    st.title(t["news"])
-    st.info("🚨 2026 Monsoon Forecast: Normal rainfall expected across Central India.")
-
-elif menu == t["rental"]:
-    st.title(t["rental"])
-    st.write("Browse Tractors & Harvesters for rent.")
-
-elif menu == t["govt"]:
-    st.title(t["govt"])
-    st.success("PM-KISAN Status: Active | PMFBY: Apply for Kharif Insurance.")
-
-elif menu == t["knowledge"]:
-    st.title(t["knowledge"])
-    st.table(pd.DataFrame([{"Crop": "Wheat", "N-P-K": "120:60:40"}]))
-
-elif menu == t["price"]:
-    st.title(t["price"])
-    df_p = pd.DataFrame({"Month": range(1,13), "Price": [2100 + (i*50) for i in range(12)]})
-    st.plotly_chart(px.line(df_p, x="Month", y="Price"))
-
-elif menu == t["khata"]:
-    st.title(t["khata"])
-    if 'ledger' not in st.session_state: st.session_state.ledger = pd.DataFrame([{"Item": "Seeds", "Cost": 1200}])
-    st.dataframe(st.session_state.ledger)
+# --- MODULE 5: AGRI KHATA ---
+elif menu == "📒 Agri Khata":
+    st.title("📒 Agri Khata (Financials)")
+    if 'ledger' not in st.session_state:
+        st.session_state.ledger = pd.DataFrame([{"Item": "Initial Seed", "Cost": 1200}])
+    
+    with st.form("ledger_form"):
+        item = st.text_input("Expense Item")
+        cost = st.number_input("Cost (₹)", 0)
+        if st.form_submit_button("Add Entry"):
+            new_entry = pd.DataFrame([{"Item": item, "Cost": cost}])
+            st.session_state.ledger = pd.concat([st.session_state.ledger, new_entry], ignore_index=True)
+    
+    fig = px.pie(st.session_state.ledger, values='Cost', names='Item', title="Expense Breakdown")
+    st.plotly_chart(fig)
