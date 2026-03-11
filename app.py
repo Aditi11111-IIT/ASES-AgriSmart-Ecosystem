@@ -10,8 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 # --- 1. CONFIGURATION & STYLING ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 OpenWeatherMap API Key
-API_KEY = "886705b4c1182ebf6969f51d03f973f9"
+# 🔑 Updated OpenWeatherMap API Key
+API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
     <style>
@@ -30,11 +30,6 @@ st.markdown("""
     }
     .highlight-text { color: #2481CC !important; font-weight: bold; }
     .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; width: 100%; }
-    .call-btn {
-        background-color: #28a745 !important; color: white !important;
-        padding: 12px; border-radius: 8px; text-decoration: none;
-        display: block; text-align: center; font-weight: bold; margin-top: 10px;
-    }
     [data-testid="stSidebar"] { background-color: #243139 !important; }
     [data-testid="stSidebar"] * { color: #ffffff !important; }
     </style>
@@ -76,12 +71,10 @@ with st.sidebar:
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     
     st.markdown("---")
-    # State selection linked to Schemes and Weather
     st_loc = st.selectbox("Your State", list(schemes_data.keys()) if schemes_data else ["Bihar"])
     
     if st.button("Update Local Weather"):
         try:
-            # FIX: Use dynamic location based on sidebar selection
             w_url = f"http://api.openweathermap.org/data/2.5/weather?q={st_loc},IN&appid={API_KEY}&units=metric"
             res = requests.get(w_url).json()
             
@@ -90,9 +83,12 @@ with st.sidebar:
                 st.session_state.hum = res['main']['humidity']
                 st.success(f"Weather synced for {st_loc}!")
             else:
-                st.error(f"Weather API Error: {res.get('message', 'Unknown Error')}")
+                st.error(f"Weather API Error: {res.get('message')}")
+                # Fallback data if key is inactive
+                st.session_state.temp = random.randint(22, 32)
+                st.session_state.hum = random.randint(45, 65)
         except Exception as e:
-            st.error(f"Could not connect to Weather API: {e}")
+            st.error(f"Connection Error: {e}")
 
 # --- 5. TABS LOGIC ---
 
