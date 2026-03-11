@@ -4,6 +4,7 @@ import json
 import random
 import plotly.express as px
 import requests
+from datetime import datetime
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder
 
@@ -17,7 +18,6 @@ except ImportError:
 # --- 1. CONFIGURATION & STYLING ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon="🌾")
 
-# 🔑 OpenWeatherMap API Key
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
@@ -67,11 +67,12 @@ df = load_agri_data()
 le = LabelEncoder()
 df['Soil_Idx'] = le.fit_transform(df['Soil Type'])
 
-# --- 3. SESSION STATE ---
+# --- 3. SESSION STATE (STRICTLY PRESERVED + LEDGER) ---
 if 'temp' not in st.session_state: st.session_state.temp = 25
 if 'hum' not in st.session_state: st.session_state.hum = 50
 if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
 if 'selected_machine' not in st.session_state: st.session_state.selected_machine = "Tractor"
+if 'ledger' not in st.session_state: st.session_state.ledger = []
 
 # --- 4. NAVIGATION & SIDEBAR ---
 state_list = list(get_state_schemes().keys())
@@ -160,11 +161,7 @@ elif tab == "📚 Knowledge Hub":
 elif tab == "🏛️ Govt Schemes":
     st.title("🏛️ Agricultural Welfare & Registration Portal")
     with st.expander("📖 How to use this Portal", expanded=True):
-        st.write("""
-        1. **Select Category:** Choose between 'State-Specific' or 'Central Govt' schemes.
-        2. **Update Location:** If you don't see your state, change it in the **Sidebar** on the left.
-        3. **Register:** Click the '🔗 Visit Official Portal' link to register.
-        """)
+        st.write("""1. Select Category. 2. Update Location in Sidebar. 3. Click 'Visit Official Portal' to register.""")
     state_schemes = get_state_schemes()
     central_schemes = get_central_schemes()
     choice = st.radio("Select Scheme Type", ["State-Specific Schemes", "Central Govt Schemes"], horizontal=True)
@@ -180,47 +177,49 @@ elif tab == "🏛️ Govt Schemes":
 
 elif tab == "📈 Price Trends":
     st.title("📈 Market Price Forecast & Calculator")
-    
     if all_crops:
         crop_names = [c['Crop'] for c in all_crops]
         col_c1, col_c2 = st.columns(2)
-        
         with col_c1:
             selected_crop = st.selectbox("Select Crop from Database", crop_names)
             base_price = 2000 + (hash(selected_crop) % 4000)
             st.info(f"Estimated Market Rate for {selected_crop}: **₹{base_price} / Quintal**")
-            
         with col_c2:
             weight = st.number_input("Enter Quantity (Quintals)", min_value=0.1, value=10.0, step=0.5)
             total_value = base_price * weight
             st.success(f"Total Estimated Value: **₹{total_value:,.2f}**")
 
-        # --- Report Generation Feature ---
-        report_text = f"""
-        ASES AGRI-REPORT
-        ----------------
-        Crop: {selected_crop}
-        Quantity: {weight} Quintals
-        Market Rate: ₹{base_price}/Quintal
-        Total Valuation: ₹{total_value:,.2f}
-        Location: {dt_loc}, {st_loc}
-        Date: 2026-03-12
-        """
-        st.download_button("📩 Download Price Report", report_text, file_name=f"{selected_crop}_report.txt")
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            report_text = f"ASES REPORT\nCrop: {selected_crop}\nValuation: ₹{total_value:,.2f}\nDate: {datetime.now().strftime('%Y-%m-%d')}"
+            st.download_button("📩 Download Price Report", report_text, file_name=f"{selected_crop}_report.txt")
+        with col_act2:
+            if st.button("📓 Save to Agri Khata"):
+                st.session_state.ledger.append({
+                    "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Crop": selected_crop,
+                    "Weight (Q)": weight,
+                    "Rate (₹/Q)": base_price,
+                    "Total (₹)": total_value
+                })
+                st.toast("Entry added to Ledger!")
 
         st.markdown("---")
-        st.subheader(f"📊 {selected_crop} Price Trajectory (6 Months)")
-        
         months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
         trend_prices = [base_price * 0.95, base_price * 1.02, base_price * 0.98, base_price * 1.05, base_price * 1.10, base_price]
-        
         dynamic_df = pd.DataFrame({"Month": months, "Price (₹)": trend_prices})
         fig = px.line(dynamic_df, x="Month", y="Price (₹)", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
-        fig.update_layout(hovermode="x unified")
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Crop database not loaded. Please check crop_master.py")
 
 elif tab == "📒 Agri Khata":
-    st.title("📒 Financial Ledger")
-    st.write("Track your farming expenses and income here.")
+    st.title("📒 Digital Agri Ledger")
+    if st.session_state.ledger:
+        ledger_df = pd.DataFrame(st.session_state.ledger)
+        st.table(ledger_df)
+        csv = ledger_df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Export Full Ledger (CSV)", data=csv, file_name="agri_khata.csv", mime='text/csv')
+        if st.button("🗑️ Clear Ledger"):
+            st.session_state.ledger = []
+            st.rerun()
+    else:
+        st.info("No entries found. Go to 'Price Trends' to calculate and save crop valuations.")
