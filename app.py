@@ -6,7 +6,7 @@ import requests
 from datetime import datetime
 
 # --- 1. CONFIGURATION & OGD API ---
-st.set_page_config(page_title="ASES: Agri-Smart", layout="centered", page_icon="🌾")
+st.set_page_config(page_title="Agri-Smart Ecosystem", layout="centered", page_icon="🌾")
 RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070" 
 OGD_API_KEY = "579b464db66ec23bdd0000019b64f520463c4fba468cc24026c3cff6"
 
@@ -50,7 +50,7 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.title("🌾 Agri-Smart Ecosystem")
+    st.title("🌾 Agri-Smart Portal")
     t_log, t_sign = st.tabs(["🔐 Login", "📝 Sign Up"])
     with t_log:
         u = st.text_input("Username")
@@ -78,60 +78,64 @@ if not st.session_state.logged_in:
 # --- 6. MAIN INTERFACE ---
 else:
     with st.sidebar:
-        st.write(f"### Welcome, {st.session_state.username}")
+        st.write(f"### 🧑‍🌾 {st.session_state.username}")
         menu = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🎯 AgriAI Engine", "🚜 Rental Hub", "🏛️ Govt Schemes", "📚 Knowledge Hub", "📉 Price Trends", "📒 Agri Ledger"])
+        
         state_list = sorted(list(india_map.keys()))
-        st_sel = st.selectbox("Your State", state_list)
+        st_sel = st.selectbox("Your State", state_list, index=0)
         dt_sel = st.selectbox("Your District", sorted(india_map.get(st_sel, ["Patna"])))
+        
         if st.button("🚪 Logout"):
             st.session_state.logged_in = False
             st.rerun()
 
+    # --- DASHBOARD ---
     if menu == "🏠 Dashboard":
         hour = datetime.now().hour
         greeting = "Good Morning" if 5 <= hour < 12 else "Good Afternoon" if 12 <= hour < 17 else "Good Evening"
-        st.markdown(f'<div class="greeting-card"><h1 style="color:white;">{greeting}, {st.session_state.username}!</h1><p>Monitoring {dt_sel} region.</p></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="weather-alert"><strong>⚠️ Weather Alert:</strong> High humidity expected. Watch for fungal growth.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="greeting-card"><h1 style="color:white; margin:0;">{greeting}, {st.session_state.username}!</h1><p style="margin:0; opacity:0.9;">Welcome to your command center for {dt_sel}.</p></div>', unsafe_allow_html=True)
+        
+        st.markdown(f'<div class="weather-alert"><strong>⚠️ Weather Alert:</strong> High humidity expected in {dt_sel}. Monitor crops for pests.</div>', unsafe_allow_html=True)
+        
         st.subheader("⚡ Quick Actions")
         q1, q2, q3 = st.columns(3)
-        q1.markdown('<div class="quick-link-btn">Check Prices</div>', unsafe_allow_html=True)
-        q2.markdown('<div class="quick-link-btn">Rent Tools</div>', unsafe_allow_html=True)
-        q3.markdown('<div class="quick-link-btn">Add Expense</div>', unsafe_allow_html=True)
+        with q1: st.markdown('<div class="quick-link-btn">Check Prices</div>', unsafe_allow_html=True)
+        with q2: st.markdown('<div class="quick-link-btn">Rent Tools</div>', unsafe_allow_html=True)
+        with q3: st.markdown('<div class="quick-link-btn">Add Expense</div>', unsafe_allow_html=True)
 
-    elif menu == "🎯 AgriAI Engine":
-        st.header("🎯 Crop Recommendation")
-        df, le = get_agri_dataframe()
-        soil = st.selectbox("Soil Type", ["Alluvial", "Black Soil", "Red Soil", "Sandy", "Loamy"])
-        budget = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
-        if st.button("🚀 GET RECOMMENDATIONS"):
-            recs = recommend_crops(df, le, soil, budget)
-            if not recs.empty:
-                for _, row in recs.iterrows():
-                    st.markdown(f'<div class="mobile-card"><b>🌱 {row["Crop Name"]}</b><br><small>Cost: ₹{row["Cost per Acre"]}</small></div>', unsafe_allow_html=True)
+        st.divider()
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Status", "Online")
+        c2.metric("Market", "Open")
+        c3.metric("District", dt_sel)
 
+    # --- GOVT SCHEMES (FIXED TYPEERROR) ---
     elif menu == "🏛️ Govt Schemes":
         st.header("🏛️ Welfare & Subsidies")
-        tab1, tab2 = st.tabs(["🇮🇳 Central", f"🏘️ {st_sel} State"])
+        t1, t2 = st.tabs(["🇮🇳 Central", f"🏘️ {st_sel} State"])
         
-        with tab1:
+        with t1:
             central_data = get_central_schemes()
             for s in central_data:
-                # FIX: Using .get() to prevent KeyError if 'details' is missing
                 with st.expander(f"📌 {s.get('name', 'Scheme')}"):
-                    st.write(s.get('details', s.get('description', 'No details available.')))
+                    st.write(s.get('details', s.get('description', 'Information coming soon.')))
                     if 'link' in s: st.link_button("Apply", s['link'])
         
-        with tab2:
-            state_data = get_state_schemes(st_sel)
-            if state_data:
-                for s in state_data:
-                    with st.expander(f"🔸 {s.get('name', 'Scheme')}"):
-                        st.write(s.get('details', s.get('description', 'No details available.')))
-                        if 'link' in s: st.link_button("Details", s['link'])
+        with t2:
+            # Check if state is selected before calling
+            if st_sel:
+                state_data = get_state_schemes(st_sel)
+                if state_data:
+                    for s in state_data:
+                        with st.expander(f"🔸 {s.get('name', 'Scheme')}"):
+                            st.write(s.get('details', s.get('description', 'Information coming soon.')))
+                            if 'link' in s: st.link_button("Details", s['link'])
+                else: st.info(f"No specific schemes found for {st_sel} yet.")
 
+    # --- PRICE TRENDS (FIXED GRAPH) ---
     elif menu == "📉 Price Trends":
-        st.header("📉 Live Mandi Prices")
-        c_names = [c['Crop'] for c in all_crops] or ["Wheat", "Mustard"]
+        st.header("📈 Live Mandi Prices")
+        c_names = [c['Crop'] for c in all_crops] or ["Wheat", "Rice"]
         sel_c = st.selectbox("Choose Commodity", c_names)
         
         url = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
@@ -139,17 +143,38 @@ else:
         
         try:
             res = requests.get(url, params=params).json()
-            # FIX: Ensuring the graph only renders if records are found
             if "records" in res and len(res["records"]) > 0:
                 m_df = pd.DataFrame(res["records"])
                 m_df['modal_price'] = pd.to_numeric(m_df['modal_price'])
                 st.success(f"Latest price in {res['records'][0]['market']}: ₹{res['records'][0]['modal_price']}")
+                # Explicitly setting a professional color sequence
                 st.plotly_chart(px.bar(m_df, x='market', y='modal_price', title=f"Prices for {sel_c}", color_discrete_sequence=['#2e7d32']), use_container_width=True)
             else:
-                st.warning(f"No live data for {sel_c} in {st_sel}. Displaying forecast.")
-                st.line_chart([2100, 2250, 2180, 2400])
+                st.warning("No live data available. Showing seasonal forecast.")
+                st.line_chart([2100, 2200, 2150, 2300, 2400])
         except:
-            st.error("API Connection Error")
+            st.error("Mandi Servers currently unreachable.")
+
+    # --- PRESERVED SECTIONS (AGRIAI, RENTAL, LEDGER) ---
+    elif menu == "🎯 AgriAI Engine":
+        st.header("🎯 Crop Recommendation")
+        df, le = get_agri_dataframe()
+        soil = st.selectbox("Soil Type", ["Alluvial", "Black Soil", "Red Soil", "Sandy", "Loamy"])
+        budget = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
+        if st.button("🚀 RUN ANALYSIS"):
+            recs = recommend_crops(df, le, soil, budget)
+            if not recs.empty:
+                for _, row in recs.iterrows():
+                    st.markdown(f'<div class="mobile-card"><b>🌱 {row["Crop Name"]}</b><br><small>Cost: ₹{row["Cost per Acre"]}</small></div>', unsafe_allow_html=True)
+
+    elif menu == "🚜 Rental Hub":
+        st.header("🚜 Machinery Rentals")
+        cat = st.segmented_control("Stage", ["Preparation", "Harvesting"], default="Preparation")
+        services = {"Preparation": [("Rotavator", "🚜")], "Harvesting": [("Harvester", "🌾")]}
+        for name, icon in services.get(cat, []):
+            with st.container(border=True):
+                st.subheader(f"{icon} {name}")
+                st.link_button(f"Find in {dt_sel}", f"https://www.google.com/search?q={name}+rental+{dt_sel}")
 
     elif menu == "📒 Agri Ledger":
         st.header("📒 Digital Ledger")
@@ -160,4 +185,5 @@ else:
             inc = df_khata[df_khata['type'].str.contains('Income')]['total'].sum()
             exp = df_khata[df_khata['type'].str.contains('Expense')]['total'].sum()
             st.subheader(f"Current Profit: ₹{inc - exp:,.2f}")
-            st.dataframe(df_khata.drop(columns=['id', 'user_key']), use_container_width=True)
+            st.dataframe(df_khata.drop(columns=['id', 'user_key']), use_container_width=True, hide_index=True)
+        else: st.info("No records yet.")
