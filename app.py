@@ -4,7 +4,6 @@ import sqlite3
 import plotly.express as px
 import requests
 from datetime import datetime
-import uuid  # 🆕 Added for user privacy
 
 # 🌾 Modular Imports
 from crop_engine_data import get_agri_dataframe, recommend_crops
@@ -22,11 +21,11 @@ try:
 except ImportError:
     all_crops = []
 
-# --- 1. DATABASE SETUP (USER-AWARE) ---
+# --- 1. DATABASE SETUP (USER-SPECIFIC) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
-    # 🆕 Added user_id column to separate data between different farmers
+    # Ensure user_id column exists to separate Person A from Person B
     c.execute('''CREATE TABLE IF NOT EXISTS ledger 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   user_id TEXT,
@@ -38,20 +37,21 @@ def add_entry(user_id, entry_type, item, qty, total, season):
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
     date = datetime.now().strftime("%Y-%m-%d")
-    # 🆕 Now inserts the specific user_id
     c.execute("INSERT INTO ledger (user_id, date, type, item, qty, total, season) VALUES (?,?,?,?,?,?,?)",
               (user_id, date, entry_type, item, str(qty), total, season))
     conn.commit()
     conn.close()
 
+def clear_user_data(user_id):
+    conn = sqlite3.connect('agri_khata.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM ledger WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
 init_db()
 
-# --- 2. USER SESSION PRIVACY ---
-# 🆕 This creates a unique ID for the current visitor's browser session
-if 'user_key' not in st.session_state:
-    st.session_state.user_key = str(uuid.uuid4())
-
-# --- 3. CONFIGURATION & STYLING (PRESERVED) ---
+# --- 2. CONFIGURATION & STYLING (PRESERVED) ---
 st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon=" 🌾 ")
 API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
@@ -62,18 +62,22 @@ st.markdown("""
 [data-testid="stSidebar"] { background-color: #243139 !important; }
 [data-testid="stSidebar"] * { color: #ffffff !important; }
 .stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; }
+.clear-btn>button { background-color: #d32f2f !important; color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SIDEBAR NAVIGATION ---
+# --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Education_Patna_Logo.png", width=120)
+    st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
     st.title("ASES NAVIGATION")
+    
+    # 🔐 PRIVACY LOCK: User must enter a name to see their own Khata
+    farmer_id = st.text_input("Enter Farmer Name / ID", "Guest").strip()
+    
     tab = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🌾 Crop Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📈 Price Trends", "📒 Agri Khata"])
     
     st_loc = st.selectbox("Select State/UT", sorted(india_map.keys()))
-    district_list = india_map.get(st_loc, ["Select District"])
-    dt_loc = st.selectbox("Select District", sorted(district_list))
+    dt_loc = st.selectbox("Select District", sorted(india_map.get(st_loc, ["Patna"])))
     
     if st.button("🔄 Sync Local Weather"):
         try:
@@ -81,26 +85,25 @@ with st.sidebar:
             res = requests.get(w_url).json()
             if res.get("cod") == 200:
                 st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-                st.success(f"Weather updated for {dt_loc}!")
+                st.success("Weather updated!")
                 st.rerun()
         except:
-            st.error("Weather service unavailable.")
+            st.error("Connection Error")
 
-# --- 5. TABS LOGIC ---
+# --- 4. TABS LOGIC ---
 
 if tab == "🏠 Dashboard":
-    st.title("👨‍🌾 Command Center")
+    st.title(f"👨‍🌾 Welcome, {farmer_id}")
     c1, c2, c3 = st.columns(3)
     c1.metric("Temperature", f"{st.session_state.get('temp', 25)}°C")
     c2.metric("Humidity", f"{st.session_state.get('hum', 50)}%")
-    c3.metric("Location", f"{dt_loc}, {st_loc}")
+    c3.metric("Location", f"{dt_loc}")
 
 elif tab == "🚜 Rental Hub":
     st.title(f"🚜 Machinery Rental: {dt_loc}")
     selected_machine = st.selectbox("Choose Equipment", ["Tractor", "Harvester", "Drone Sprayer", "Rotavator"])
     st.markdown(f'<div class="main-card"><h4>{selected_machine} Status</h4><p>Available for rent in {dt_loc} region.</p></div>', unsafe_allow_html=True)
     st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Call Kisan Call Centre</a>', unsafe_allow_html=True)
-    st.link_button("🔍 Find Local Rental Centers", f"https://www.google.com/search?q={selected_machine}+rental+near+{dt_loc}")
 
 elif tab == "📈 Price Trends":
     st.title("📈 Mandi Price Trends")
@@ -110,16 +113,11 @@ elif tab == "📈 Price Trends":
     st.plotly_chart(fig, use_container_width=True)
 
 elif tab == "📒 Agri Khata":
-    st.title("📒 Seasonal Digital Ledger")
-    filter_season = st.selectbox("🔍 Filter Season", ["All Seasons", "Kharif", "Rabi", "Zaid"])
+    st.title(f"📒 Digital Ledger for {farmer_id}")
     
     conn = sqlite3.connect('agri_khata.db')
-    # 🆕 FILTERED QUERY: Only show data belonging to THIS user's unique key
-    if filter_season == "All Seasons":
-        query = f"SELECT * FROM ledger WHERE user_id = '{st.session_state.user_key}'"
-    else:
-        query = f"SELECT * FROM ledger WHERE user_id = '{st.session_state.user_key}' AND season='{filter_season}'"
-    
+    # Fetching ONLY data that matches the farmer_id entered in the sidebar
+    query = f"SELECT * FROM ledger WHERE user_id = '{farmer_id}'"
     df_ledger = pd.read_sql_query(query, conn)
     conn.close()
     
@@ -131,19 +129,26 @@ elif tab == "📒 Agri Khata":
         c2.metric("Investment", f"₹{expense:,.2f}")
         c3.metric("Profit", f"₹{income - expense:,.2f}")
         st.dataframe(df_ledger, use_container_width=True)
+        
+        # 🗑️ CLEAR DATA OPTION
+        st.markdown("---")
+        st.warning("Danger Zone")
+        if st.button(f"🗑️ Clear All Data for {farmer_id}", type="secondary"):
+            clear_user_data(farmer_id)
+            st.success(f"All records for {farmer_id} deleted!")
+            st.rerun()
     else:
-        st.info("No personal records found. Your data is private to this session.")
+        st.info(f"No records found for '{farmer_id}'. Enter expenses below to start.")
 
-    with st.expander("➕ Add Entry"):
-        with st.form("ledger_form"):
+    with st.expander("➕ Add New Entry"):
+        with st.form("khata_form"):
             t_type = st.selectbox("Type", ["Income (Sales)", "Expense (Seeds/Fertilizer)", "Expense (Labor)"])
             item = st.text_input("Item Name")
             total_val = st.number_input("Amount (₹)", min_value=0.0)
             season = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
             if st.form_submit_button("Save Entry"):
-                # 🆕 Passing user_key to save correctly
-                add_entry(st.session_state.user_key, t_type, item, "1", total_val, season)
-                st.success("Entry Saved Privately!")
+                add_entry(farmer_id, t_type, item, "1", total_val, season)
+                st.success("Saved!")
                 st.rerun()
 
-# (Other tabs like Crop Engine and Knowledge Hub remain exactly the same as previous integration)
+# (Note: Crop Engine, Knowledge Hub, and Govt Schemes remain preserved from previous versions)
