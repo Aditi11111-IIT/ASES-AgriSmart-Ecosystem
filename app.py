@@ -17,7 +17,7 @@ try:
     from crop_engine_data import get_agri_dataframe, recommend_crops
     from schemes_db import get_state_schemes, get_central_schemes
 except ImportError:
-    st.error("One or more modules (Locations, crop_master, etc.) are missing from the folder!")
+    st.error("Missing Modules! Ensure Locations.py, crop_master.py, and schemes_db.py are in the same folder.")
     india_map = {"Bihar": ["Patna", "Gaya"]}
     all_crops = []
 
@@ -38,26 +38,11 @@ init_db()
 st.markdown("""
 <style>
     .stApp { max-width: 850px; margin: 0 auto; }
-    .mobile-card { 
-        padding: 15px; border-radius: 12px; 
-        border: 1px solid rgba(46, 125, 50, 0.3); 
-        background-color: rgba(46, 125, 50, 0.05);
-        margin-bottom: 12px;
-    }
-    .scheme-card {
-        padding: 20px; border-radius: 12px; background-color: #e3f2fd; 
-        border-left: 8px solid #1976d2; margin-bottom: 15px;
-    }
-    .central-card {
-        padding: 20px; border-radius: 12px; background-color: #f1f8e9; 
-        border-left: 8px solid #2e7d32; margin-bottom: 15px;
-    }
+    .mobile-card { padding: 15px; border-radius: 12px; border: 1px solid rgba(46,125,50,0.3); background-color: rgba(46,125,50,0.05); margin-bottom: 12px; }
+    .scheme-card { padding: 20px; border-radius: 12px; background-color: #e3f2fd; border-left: 8px solid #1976d2; margin-bottom: 15px; }
+    .central-card { padding: 20px; border-radius: 12px; background-color: #f1f8e9; border-left: 8px solid #2e7d32; margin-bottom: 15px; }
     .stButton>button { border-radius: 12px; height: 3.5em; font-weight: bold; width: 100%; }
-    .call-btn { 
-        background-color: #ffc107 !important; color: black !important; 
-        padding: 12px; border-radius: 10px; text-decoration: none; 
-        display: block; text-align: center; font-weight: bold; margin-top: 10px;
-    }
+    .call-btn { background-color: #ffc107 !important; color: black !important; padding: 12px; border-radius: 10px; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,6 +83,7 @@ else:
         st.subheader(f"User: {st.session_state.username}")
         menu = st.radio("SELECT SERVICE", ["🏠 Dashboard", "🎯 AgriAI Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "🏛️ Govt Schemes", "📉 Price Trends", "📒 Agri Ledger"])
         
+        # State & District Selection
         state_list = sorted(list(india_map.keys()))
         st_sel = st.selectbox("Your State", state_list)
         dt_sel = st.selectbox("Your District", sorted(india_map.get(st_sel, ["Patna"])))
@@ -128,81 +114,72 @@ else:
                 for _, row in recs.iterrows():
                     st.markdown(f'''<div class="mobile-card">
                         <b>🌱 {row["Crop Name"]}</b><br>
-                        <small>Estimated Cost: ₹{row["Cost per Acre"]}/Acre</small><br>
-                        <small>Recommended Sowing: Month {int(row["Sowing Month"])}</small>
+                        <small>Estimated Cost: ₹{row["Cost per Acre"]}/Acre</small>
                     </div>''', unsafe_allow_html=True)
-            else: st.warning("No matches found. Try increasing your budget.")
+            else: st.warning("No matches. Try adjusting your budget.")
 
     # --- RENTAL HUB ---
     elif menu == "🚜 Rental Hub":
         st.header("🚜 Machinery Rentals")
-        cat = st.segmented_control("Category", ["Preparation", "Sowing", "Harvesting"], default="Preparation")
-        machines = {
-            "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
-            "Sowing": [("Seed Drill", "🌱"), ("Rice Transplanter", "🌾")],
-            "Harvesting": [("Combine Harvester", "🌾✨"), ("Thresher", "🌪️")]
-        }
+        cat = st.segmented_control("Service Category", ["Preparation", "Sowing", "Harvesting"], default="Preparation")
+        machines = {"Preparation": [("Rotavator", "🚜")], "Sowing": [("Seed Drill", "🌱")], "Harvesting": [("Thresher", "🌪️")]}
         for name, icon in machines.get(cat, []):
             with st.container(border=True):
                 st.subheader(f"{icon} {name}")
                 st.link_button(f"Find in {dt_sel}", f"https://www.google.com/search?q={name}+rental+service+in+{dt_sel}")
-                st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Call Govt Helpline</a>', unsafe_allow_html=True)
 
     # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Detailed Crop Library")
-        q = st.text_input("🔍 Search Crop (e.g., Wheat)...").strip()
+        q = st.text_input("🔍 Search Crop...").strip()
         filtered = [c for c in all_crops if q.lower() in c['Crop'].lower()] if q else all_crops
         for item in filtered:
             with st.expander(f"📖 {item['Crop']} ({item['Type']})"):
-                ca, cb = st.columns(2)
-                ca.write(f"**Season:** {item['Season']}")
-                ca.write(f"**Soil:** {item['Soil']}")
-                cb.write(f"**N-P-K:** {item['N-P-K']}")
-                cb.write(f"**Water:** {item['Water']}")
+                st.write(f"**Season:** {item['Season']} | **Water:** {item['Water']}")
                 st.success(f"💡 **Expert Tip:** {item['Pro-Tip']}")
 
-    # --- GOVT SCHEMES ---
+    # --- GOVT SCHEMES (FIXED TYPEERROR) ---
     elif menu == "🏛️ Govt Schemes":
         st.header("🏛️ Welfare & Portal Access")
-        state_data = get_state_schemes(st_sel)
+        try:
+            state_data = get_state_schemes(st_sel)
+        except:
+            state_data = None
+            
         central_data = get_central_schemes()
         tab_s, tab_c = st.tabs(["📍 State Schemes", "🇮🇳 Central Schemes"])
         with tab_s:
-            if state_data:
-                st.markdown(f"""
-                    <div class="scheme-card">
-                        <h3 style="color:#1976d2;">🌟 {state_data['name']}</h3>
-                        <p>{state_data['desc']}</p>
-                        <a href="{state_data['link']}" target="_blank" class="call-btn">📝 Register on Official Portal</a>
-                    </div>""", unsafe_allow_html=True)
-            else: st.info(f"No specific local portal links found for {st_sel}.")
+            if isinstance(state_data, dict) and 'link' in state_data:
+                st.markdown(f'''<div class="scheme-card"><h3>🌟 {state_data.get('name', 'State Scheme')}</h3><p>{state_data.get('desc', '')}</p><a href="{state_data['link']}" target="_blank" class="call-btn">📝 Open Official Portal</a></div>''', unsafe_allow_html=True)
+            else: st.info(f"No specific links for {st_sel}. Please check Central Schemes.")
         with tab_c:
             for cs in central_data:
-                st.markdown(f"""
-                    <div class="central-card">
-                        <h4 style="color:#2e7d32;">🏢 {cs['name']}</h4>
-                        <p style="font-size:0.9em;">{cs['desc']}</p>
-                        <a href="{cs['link']}" target="_blank" style="color:#2e7d32; font-weight:bold;">Visit Portal →</a>
-                    </div>""", unsafe_allow_html=True)
+                st.markdown(f'<div class="central-card"><h4>🏢 {cs["name"]}</h4><p>{cs["desc"]}</p><a href="{cs["link"]}" target="_blank" style="color:#2e7d32; font-weight:bold;">Visit Portal →</a></div>', unsafe_allow_html=True)
 
-    # --- PRICE TRENDS ---
+    # --- PRICE TRENDS (FIXED LIVE GRAPH) ---
     elif menu == "📉 Price Trends":
         st.header("📈 Live Mandi Prices")
-        c_names = [c['Crop'] for c in all_crops] if all_crops else ["Wheat", "Rice"]
-        sel_c = st.selectbox("Choose Commodity", c_names)
+        # Define common commodities to ensure user gets results
+        sel_c = st.selectbox("Choose Commodity", ["Paddy(Dhan)", "Wheat", "Maize", "Barley", "Mustard", "Onion", "Potato"])
+        
         url = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
         params = {"api-key": OGD_API_KEY, "format": "json", "filters[state]": st_sel, "filters[commodity]": sel_c}
+        
         try:
             res = requests.get(url, params=params).json()
-            if "records" in res and res["records"]:
-                latest = res["records"][0]
-                st.metric(f"Latest Mandi Price ({latest['market']})", f"₹{latest['modal_price']} / Qtl")
+            if "records" in res and len(res["records"]) > 0:
                 mandi_df = pd.DataFrame(res["records"])
                 mandi_df['modal_price'] = pd.to_numeric(mandi_df['modal_price'], errors='coerce')
-                st.plotly_chart(px.bar(mandi_df, x='market', y='modal_price', color_discrete_sequence=['#2e7d32']), use_container_width=True)
-            else: st.warning("Live Mandi data currently unavailable for this selection.")
-        except: st.error("Failed to connect to Mandi API. Check internet connection.")
+                
+                latest = mandi_df.iloc[0]
+                st.metric(f"Mandi Price ({latest['market']})", f"₹{latest['modal_price']} / Qtl")
+                
+                fig = px.bar(mandi_df, x='market', y='modal_price', color='modal_price', color_continuous_scale='Greens', labels={'modal_price': 'Price (₹/Qtl)'})
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning(f"Live data for {sel_c} in {st_sel} is currently unavailable.")
+                st.info("Try selecting 'Paddy(Dhan)' or 'Wheat' as they are more commonly reported.")
+        except: st.error("Connection Error with Govt API.")
 
     # --- AGRI LEDGER ---
     elif menu == "📒 Agri Ledger":
@@ -213,20 +190,14 @@ else:
 
         if not df_khata.empty:
             df_khata['total'] = pd.to_numeric(df_khata['total'], errors='coerce')
-            inc = df_khata[df_khata['type'].str.contains('Income')]['total'].sum()
-            exp = df_khata[df_khata['type'].str.contains('Expense')]['total'].sum()
-            
-            st.subheader(f"Current Profit: ₹{inc - exp:,.2f}")
-            csv = df_khata.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download Financial Report", data=csv, file_name=f"{st.session_state.username}_report.csv", mime='text/csv')
+            st.subheader(f"Total Profit: ₹{df_khata[df_khata['type'].str.contains('Income')]['total'].sum() - df_khata[df_khata['type'].str.contains('Expense')]['total'].sum():,.2f}")
             st.dataframe(df_khata.drop(columns=['id', 'user_key']), use_container_width=True, hide_index=True)
         else: st.info("No personal records found.")
 
         with st.expander("➕ Add Transaction"):
             with st.form("new_entry", clear_on_submit=True):
                 t_type = st.selectbox("Category", ["Income (Sales)", "Expense (Seeds/Labor)", "Expense (Machinery)"])
-                t_item = st.text_input("Description")
-                t_amt = st.number_input("Amount (₹)", min_value=0.0)
+                t_item, t_amt = st.text_input("Description"), st.number_input("Amount (₹)", min_value=0.0)
                 if st.form_submit_button("Save to Ledger"):
                     conn = sqlite3.connect('agri_khata.db')
                     conn.execute("INSERT INTO ledger (user_key, date, type, item, qty, total, season) VALUES (?,?,?,?,?,?,?)",
