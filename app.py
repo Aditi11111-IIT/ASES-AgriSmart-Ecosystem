@@ -91,7 +91,9 @@ else:
     with st.sidebar:
         st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=80)
         st.write(f"🧑‍🌾 **{st.session_state.username}**")
-        menu = st.radio("Go to", ["🏠 Dashboard", "🎯 AgriAI Engine", "🚜 Rental Hub", "📚 Knowledge Hub", "📉 Price Trends", "📒 Agri Ledger"])
+        
+        # Updated Menu with Govt Schemes
+        menu = st.radio("Go to", ["🏠 Dashboard", "🎯 AgriAI Engine", "🏛️ Govt Schemes", "🚜 Rental Hub", "📚 Knowledge Hub", "📉 Price Trends", "📒 Agri Ledger"])
         
         state_sel = st.selectbox("State", sorted(india_map.keys()))
         dist_sel = st.selectbox("District", sorted(india_map.get(state_sel, ["Patna"])))
@@ -125,6 +127,36 @@ else:
                     </div>''', unsafe_allow_html=True)
             else: st.warning("Try a higher budget.")
 
+    # --- GOVT SCHEMES SECTION ---
+    elif menu == "🏛️ Govt Schemes":
+        st.header(f"🏛️ Schemes for {state_sel}")
+        
+        # 1. Fetch State Specific Scheme
+        state_data = get_state_schemes()
+        current_scheme = state_data.get(state_sel)
+
+        if current_scheme:
+            st.subheader(f"📍 State Special: {state_sel}")
+            with st.container(border=True):
+                st.markdown(f"### {current_scheme['name']}")
+                st.write(current_scheme['desc'])
+                st.link_button(f"Apply on {state_sel} Portal", current_scheme['link'])
+        else:
+            st.info(f"Looking for specific {state_sel} schemes... Check the Central list below.")
+
+        st.divider()
+
+        # 2. Fetch Central Schemes
+        st.subheader("🌍 Central Government Schemes")
+        central_schemes = get_central_schemes()
+        
+        for scheme in central_schemes:
+            with st.expander(f"✨ {scheme['name']}"):
+                st.write(scheme['desc'])
+                st.link_button("View Official Website", scheme['link'])
+
+        st.info("💡 Tip: Keep your Aadhaar and Land Records (Jamabandi/Bhu-Naksha) ready for application.")
+
     # --- RENTAL HUB ---
     elif menu == "🚜 Rental Hub":
         st.header("🚜 Machine Rentals")
@@ -140,11 +172,10 @@ else:
                 st.link_button(f"Find in {dist_sel}", f"https://www.google.com/search?q={m_name}+rental+in+{dist_sel}")
                 st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Govt Help</a>', unsafe_allow_html=True)
 
-    # --- KNOWLEDGE HUB (Mobile UI & Comparison) ---
+    # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Crop Library")
         
-        # Comparison Section
         with st.expander("⚖️ Compare Two Crops"):
             c_names = [c['Crop'] for c in all_crops]
             ca, cb = st.columns(2)
@@ -162,8 +193,6 @@ else:
             st.table(comp_df.set_index("Feature"))
 
         st.divider()
-
-        # Search and Cards
         q = st.text_input("🔍 Search Crop (e.g., Wheat, Sandy, Fruit)")
         filtered = [c for c in all_crops if q.lower() in str(c).lower()] if q else all_crops
         
