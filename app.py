@@ -49,6 +49,10 @@ st.markdown("""
         padding: 12px; border-radius: 10px; text-decoration: none; 
         display: block; text-align: center; font-weight: bold; margin-top: 10px;
     }
+    .badge {
+        background: #2e7d32; color: white; padding: 2px 8px; 
+        border-radius: 8px; font-size: 0.8em; float: right;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,7 +108,7 @@ else:
         c2.metric("Market", "Open")
         st.info("💡 Check Market Trends for live prices from government mandis.")
 
-    # --- AGRIAI ENGINE (Improved Recommendations) ---
+    # --- AGRIAI ENGINE ---
     elif menu == "🎯 AgriAI Engine":
         st.header("🎯 Precision Crop AI")
         df, le = get_agri_dataframe()
@@ -121,7 +125,7 @@ else:
                     </div>''', unsafe_allow_html=True)
             else: st.warning("Try a higher budget.")
 
-    # --- RENTAL HUB (Mobile Optimized) ---
+    # --- RENTAL HUB ---
     elif menu == "🚜 Rental Hub":
         st.header("🚜 Machine Rentals")
         category = st.pills("Task", ["Preparation", "Sowing", "Harvesting"])
@@ -133,21 +137,53 @@ else:
         for m_name, icon in machines.get(category or "Preparation", []):
             with st.container(border=True):
                 st.subheader(f"{icon} {m_name}")
-                st.link_button(f"Find in {dist_sel}", f"https://www.google.com/search?q={m_name}+rental+{dist_sel}")
+                st.link_button(f"Find in {dist_sel}", f"https://www.google.com/search?q={m_name}+rental+in+{dist_sel}")
                 st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Govt Help</a>', unsafe_allow_html=True)
 
-    # --- KNOWLEDGE HUB (Detailed) ---
+    # --- KNOWLEDGE HUB (Mobile UI & Comparison) ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Crop Library")
-        q = st.text_input("🔍 Search Crop...")
-        filtered = [c for c in all_crops if q.lower() in c['Crop'].lower()] if q else all_crops
-        for item in filtered:
-            with st.expander(f"📖 {item['Crop']}"):
-                st.write(f"**Season:** {item['Season']}")
-                st.write(f"**NPK:** {item['N-P-K']}")
-                st.success(f"💡 **Tip:** {item['Pro-Tip']}")
+        
+        # Comparison Section
+        with st.expander("⚖️ Compare Two Crops"):
+            c_names = [c['Crop'] for c in all_crops]
+            ca, cb = st.columns(2)
+            crop_1 = ca.selectbox("Crop 1", c_names, index=0)
+            crop_2 = cb.selectbox("Crop 2", c_names, index=1)
+            
+            d1 = next(i for i in all_crops if i["Crop"] == crop_1)
+            d2 = next(i for i in all_crops if i["Crop"] == crop_2)
+            
+            comp_df = pd.DataFrame({
+                "Feature": ["Type", "Soil", "Season", "Water"],
+                crop_1: [d1['Type'], d1['Soil'], d1['Season'], d1['Water']],
+                crop_2: [d2['Type'], d2['Soil'], d2['Season'], d2['Water']]
+            })
+            st.table(comp_df.set_index("Feature"))
 
-    # --- PRICE TRENDS (Live API) ---
+        st.divider()
+
+        # Search and Cards
+        q = st.text_input("🔍 Search Crop (e.g., Wheat, Sandy, Fruit)")
+        filtered = [c for c in all_crops if q.lower() in str(c).lower()] if q else all_crops
+        
+        for item in filtered:
+            st.markdown(f'''
+                <div class="mobile-card">
+                    <span class="badge">{item['Type']}</span>
+                    <b>🌱 {item['Crop']}</b><br>
+                    <small>📍 {item['Season']} | ⏳ {item['Harvesting']}</small>
+                </div>
+            ''', unsafe_allow_html=True)
+            with st.expander("🔍 View Details & Pro-Tip"):
+                c1, c2 = st.columns(2)
+                c1.write(f"🧪 **NPK:** {item['N-P-K']}")
+                c1.write(f"🌍 **Soil:** {item['Soil']}")
+                c2.write(f"💧 **Water:** {item['Water']}")
+                c2.write(f"🐛 **Pest:** {item['Pest']}")
+                st.info(f"💡 **Tip:** {item['Pro-Tip']}")
+
+    # --- PRICE TRENDS ---
     elif menu == "📉 Price Trends":
         st.header("📈 Live Mandi Prices")
         c_list = [c['Crop'] for c in all_crops] if all_crops else ["Wheat", "Rice"]
@@ -164,16 +200,14 @@ else:
             else: st.info("No live data for today. Showing historical trend.")
         except: st.error("API connection failed.")
         
-        # 12-Month Chart
         months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
         vals = [2100, 2050, 2150, 2200, 2300, 2250, 2350, 2400, 2380, 2450, 2500, 2480]
-        st.plotly_chart(px.line(x=months, y=vals, title="Annual Cycle"), use_container_width=True)
+        st.plotly_chart(px.line(x=months, y=vals, title="Annual Price Cycle"), use_container_width=True)
 
-    # --- AGRI LEDGER (Privacy) ---
+    # --- AGRI LEDGER ---
     elif menu == "📒 Agri Ledger":
         st.header("📒 Private Ledger")
         conn = sqlite3.connect('agri_khata.db')
-        # Privacy filter: user_key
         df_khata = pd.read_sql_query(f"SELECT * FROM ledger WHERE user_key='{st.session_state.username}'", conn)
         conn.close()
 
