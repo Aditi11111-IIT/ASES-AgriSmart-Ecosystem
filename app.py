@@ -138,9 +138,11 @@ else:
                 st.write(f"**Season:** {item['Season']} | **Water:** {item['Water']}")
                 st.success(f"💡 **Expert Tip:** {item['Pro-Tip']}")
 
-    # --- GOVT SCHEMES (FIXED TYPEERROR) ---
+    # --- GOVT SCHEMES (MULTI-LINK SUPPORT) ---
     elif menu == "🏛️ Govt Schemes":
         st.header("🏛️ Welfare & Portal Access")
+        
+        # 1. Get State Data (Handling potential list or dict)
         try:
             state_data = get_state_schemes(st_sel)
         except:
@@ -148,15 +150,42 @@ else:
             
         central_data = get_central_schemes()
         tab_s, tab_c = st.tabs(["📍 State Schemes", "🇮🇳 Central Schemes"])
+        
         with tab_s:
-            if isinstance(state_data, dict) and 'link' in state_data:
-                st.markdown(f'''<div class="scheme-card"><h3>🌟 {state_data.get('name', 'State Scheme')}</h3><p>{state_data.get('desc', '')}</p><a href="{state_data['link']}" target="_blank" class="call-btn">📝 Open Official Portal</a></div>''', unsafe_allow_html=True)
-            else: st.info(f"No specific links for {st_sel}. Please check Central Schemes.")
-        with tab_c:
-            for cs in central_data:
-                st.markdown(f'<div class="central-card"><h4>🏢 {cs["name"]}</h4><p>{cs["desc"]}</p><a href="{cs["link"]}" target="_blank" style="color:#2e7d32; font-weight:bold;">Visit Portal →</a></div>', unsafe_allow_html=True)
+            st.subheader(f"Available in {st_sel}")
+            
+            # If your database returns a list of dictionaries (multiple schemes)
+            if isinstance(state_data, list):
+                for scheme in state_data:
+                    st.markdown(f"""
+                        <div class="scheme-card">
+                            <h3 style="color:#1976d2;">🌟 {scheme.get('name', 'State Welfare')}</h3>
+                            <p>{scheme.get('desc', 'Click below for registration details.')}</p>
+                            <a href="{scheme.get('link', '#')}" target="_blank" class="call-btn">📝 Apply on Official Portal</a>
+                        </div>""", unsafe_allow_html=True)
+            
+            # If your database returns a single dictionary
+            elif isinstance(state_data, dict):
+                st.markdown(f"""
+                    <div class="scheme-card">
+                        <h3 style="color:#1976d2;">🌟 {state_data.get('name', 'State Welfare')}</h3>
+                        <p>{state_data.get('desc', 'Official state agricultural portal.')}</p>
+                        <a href="{state_data.get('link', '#')}" target="_blank" class="call-btn">📝 Apply on Official Portal</a>
+                    </div>""", unsafe_allow_html=True)
+            
+            else:
+                st.info(f"No specific digital portals are currently listed for {st_sel}.")
+                st.write("Please check the Central Schemes tab for nationwide benefits.")
 
-    # --- PRICE TRENDS (FIXED LIVE GRAPH) ---
+        with tab_c:
+            st.subheader("Nationwide Portals")
+            for cs in central_data:
+                st.markdown(f"""
+                    <div class="central-card">
+                        <h4 style="color:#2e7d32;">🏢 {cs['name']}</h4>
+                        <p style="font-size:0.9em;">{cs['desc']}</p>
+                        <a href="{cs['link']}" target="_blank" style="color:#2e7d32; font-weight:bold;">Visit Portal →</a>
+                    </div>""", unsafe_allow_html=True)
     elif menu == "📉 Price Trends":
         st.header("📈 Live Mandi Prices")
         # Define common commodities to ensure user gets results
