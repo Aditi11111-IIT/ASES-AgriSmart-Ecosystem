@@ -5,183 +5,221 @@ import plotly.express as px
 import requests
 from datetime import datetime
 
-#  🌾  Modular Imports
+# --- 1. MODULAR IMPORTS (CLEAN & ORGANIZED) ---
 from crop_engine_data import get_agri_dataframe, recommend_crops
 from schemes_db import get_state_schemes, get_central_schemes
-
-#  📍  External Location Data Import
 try:
     from Locations import india_map
-except ImportError:
-    st.error("Locations.py not found!")
-    india_map = {"Bihar": ["Patna"]}
-
-try:
     from crop_master import all_crops
 except ImportError:
+    india_map = {"Bihar": ["Patna", "Bihta"]}
     all_crops = []
 
-# --- 1. DATABASE SETUP (USER PRIVACY & MIGRATION) ---
+# --- 2. DATABASE LOGIC (MULTI-USER & MIGRATION) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
-    # Ensure the table exists with the user_id column
+    # Ledger Table
     c.execute('''CREATE TABLE IF NOT EXISTS ledger 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  user_id TEXT,
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT,
                   date TEXT, type TEXT, item TEXT, qty TEXT, total REAL, season TEXT)''')
+    # Users Table
+    c.execute('''CREATE TABLE IF NOT EXISTS users 
+                 (username TEXT PRIMARY KEY, password TEXT)''')
     
-    # Fix for existing databases: check if user_id column is present
+    # Check for legacy table migration
     try:
-        c.execute("SELECT user_id FROM ledger LIMIT 1")
+        c.execute("SELECT user_key FROM ledger LIMIT 1")
     except sqlite3.OperationalError:
-        c.execute("ALTER TABLE ledger ADD COLUMN user_id TEXT DEFAULT 'Guest_0000'")
-        
+        c.execute("ALTER TABLE ledger ADD COLUMN user_key TEXT DEFAULT 'Guest_0000'")
     conn.commit()
     conn.close()
 
-def add_entry(user_id, entry_type, item, qty, total, season):
+def delete_user_data(user_key):
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
-    date = datetime.now().strftime("%Y-%m-%d")
-    c.execute("INSERT INTO ledger (user_id, date, type, item, qty, total, season) VALUES (?,?,?,?,?,?,?)",
-              (user_id, date, entry_type, item, str(qty), total, season))
-    conn.commit()
-    conn.close()
-
-def delete_user_data(user_id):
-    conn = sqlite3.connect('agri_khata.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM ledger WHERE user_id = ?", (user_id,))
+    c.execute("DELETE FROM ledger WHERE user_key = ?", (user_key,))
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- 2. CONFIGURATION & STYLING (STRICTLY PRESERVED) ---
-st.set_page_config(page_title="ASES: Agri-Smart Ecosystem", layout="wide", page_icon=" 🌾 ")
-API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
+# --- 3. UI/UX THEME (ADAPTIVE LIGHT/DARK MODE) ---
+st.set_page_config(page_title="ASES: Agri-Smart", layout="wide", page_icon="🌾")
 
 st.markdown("""
 <style>
-.main-card { padding: 25px; border-radius: 12px; background-color: #FFFFFF !important; border: 1px solid #2481CC; margin-bottom: 20px; }
-.call-btn { background-color: #28a745 !important; color: white !important; padding: 12px; border-radius: 8px; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-top: 10px; }
-[data-testid="stSidebar"] { background-color: #243139 !important; }
-[data-testid="stSidebar"] * { color: #ffffff !important; }
-.stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; }
+    /* Professional Card Containers */
+    .stApp { background-attachment: fixed; }
+    .agri-card {
+        padding: 20px;
+        border-radius: 15px;
+        background-color: rgba(128, 128, 128, 0.05);
+        border: 1px solid rgba(46, 125, 50, 0.3);
+        margin-bottom: 20px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    }
+    /* Buttons */
+    .stButton>button {
+        border-radius: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    /* Custom Green Metric */
+    [data-testid="stMetricValue"] { color: #2e7d32 !important; }
+    
+    /* Login Page Styling */
+    .login-container {
+        max-width: 400px;
+        margin: auto;
+        padding: 30px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (SECURE LOGIN & NAVIGATION) ---
-with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
-    st.title("ASES NAVIGATION")
+# --- 4. LOGIN & SIGNUP UI ---
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🌾 ASES: Agri-Smart Ecosystem")
+    st.caption("IIT Patna CSDA Capstone Project")
     
-    # Secure Login Logic
-    st.subheader("👤 Farmer Login")
-    u_name = st.text_input("Name", value="Guest").strip()
-    u_pin = st.text_input("PIN (4 Digits)", value="0000", type="password")
-    # This combination ensures that two 'Aditis' with different PINs don't see the same data
-    current_user = f"{u_name}_{u_pin}" 
+    tab_l, tab_s = st.tabs(["Login", "Sign Up"])
     
-    tab = st.radio("SELECT SERVICE", [" 🏠  Dashboard", " 🌾  Crop Engine", " 🚜  Rental Hub", " 📚  Knowledge Hub", " 🏛️  Govt Schemes", " 📈  Price Trends", " 📒  Agri Khata"])
-    
-    st_loc = st.selectbox("Your State", sorted(india_map.keys()))
-    dt_loc = st.selectbox("Your District", sorted(india_map.get(st_loc, ["Patna"])))
-    
-    if st.button("Update Local Weather"):
-        try:
-            w_url = f"http://api.openweathermap.org/data/2.5/weather?q={dt_loc},IN&appid={API_KEY}&units=metric"
-            res = requests.get(w_url).json()
-            if res.get("cod") == 200:
-                st.session_state.temp, st.session_state.hum = res['main']['temp'], res['main']['humidity']
-                st.success("Weather synced!")
+    with tab_l:
+        with st.container():
+            l_user = st.text_input("Username", placeholder="Enter name")
+            l_pass = st.text_input("Password", type="password")
+            if st.button("Sign In", use_container_width=True):
+                conn = sqlite3.connect('agri_khata.db')
+                c = conn.cursor()
+                c.execute("SELECT * FROM users WHERE username=? AND password=?", (l_user, l_pass))
+                if c.fetchone():
+                    st.session_state.logged_in = True
+                    st.session_state.username = l_user
+                    st.rerun()
+                else:
+                    st.error("Invalid Username or Password")
+                conn.close()
+
+    with tab_s:
+        s_user = st.text_input("Choose Username", key="new_user")
+        s_pass = st.text_input("Create Password", type="password", key="new_pass")
+        if st.button("Create Account", use_container_width=True):
+            try:
+                conn = sqlite3.connect('agri_khata.db')
+                c = conn.cursor()
+                c.execute("INSERT INTO users VALUES (?,?)", (s_user, s_pass))
+                conn.commit()
+                st.success("Registration Successful! Please login.")
+                conn.close()
+            except sqlite3.IntegrityError:
+                st.error("This username is already taken.")
+
+# --- 5. MAIN APP UI (POST-LOGIN) ---
+else:
+    with st.sidebar:
+        st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
+        st.subheader(f"👋 Namaste, {st.session_state.username}")
+        if st.button("Log Out"):
+            st.session_state.logged_in = False
+            st.rerun()
+        
+        st.markdown("---")
+        tab = st.radio("MAIN NAVIGATION", ["🏠 Dashboard", "🌾 AgriAI Engine", "🚜 Rental Hub", "📉 Price Trends", "📒 Agri Khata"])
+        
+        st_loc = st.selectbox("Your State", sorted(india_map.keys()))
+        dt_loc = st.selectbox("Your District", sorted(india_map.get(st_loc, ["Patna"])))
+
+    # --- TAB: DASHBOARD ---
+    if tab == "🏠 Dashboard":
+        st.title(f"🚀 Command Center: {dt_loc}")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Current Temp", "24°C", "2°")
+        col2.metric("Humidity", "62%")
+        col3.metric("Rain Chance", "10%")
+        
+        st.markdown(f"""
+        <div class="agri-card">
+            <h3>Farmer Profile: {st.session_state.username}</h3>
+            <p>Welcome to the ASES platform. Your data is synced with <b>{st_loc}</b> regional Mandis.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- TAB: AGRI-AI ENGINE ---
+    elif tab == "🌾 AgriAI Engine":
+        st.title("🌾 AgriAI Smart Advisor")
+        df, le = get_agri_dataframe()
+        soil = st.selectbox("Select Soil Type", ["Alluvial", "Black Soil", "Red Soil", "Sandy"])
+        budget = st.slider("Investment Budget (₹)", 5000, 50000, 15000)
+        
+        if st.button("🚀 GET RECOMMENDATION", use_container_width=True):
+            recs = recommend_crops(df, le, soil, budget)
+            for _, row in recs.iterrows():
+                st.markdown(f"""
+                <div class="agri-card">
+                    <h4>{row['Crop Name']}</h4>
+                    <p>Estimated Cost: ₹{row['Cost per Acre']} | Recommended for {soil}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # --- TAB: PRICE TRENDS ---
+    elif tab == "📉 Price Trends":
+        st.title("📈 Market Price Trends")
+        if all_crops:
+            crop_sel = st.selectbox("Select Crop", [c['Crop'] for c in all_crops])
+            # Original price logic
+            prices = [2100, 2250, 2180, 2300, 2450, 2400]
+            fig = px.line(pd.DataFrame({"Month": ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"], "Price": prices}), 
+                          x="Month", y="Price", markers=True, line_shape="spline", title=f"Trends for {crop_sel}")
+            fig.update_traces(line_color='#2e7d32')
+            st.plotly_chart(fig, use_container_width=True)
+
+    # --- TAB: AGRI KHATA (SECURE LEDGER) ---
+    elif tab == "📒 Agri Khata":
+        st.title("📒 Digital Seasonal Ledger")
+        
+        # CLEAR DATA BUTTON AT THE TOP
+        c_clear = st.columns([4, 1])
+        with c_clear[1]:
+            if st.button("🗑️ Clear My Data", type="primary", use_container_width=True):
+                delete_user_data(st.session_state.username)
+                st.toast("Database Cleared!")
                 st.rerun()
-        except:
-            st.error("Weather service unavailable.")
 
-# --- 4. TABS LOGIC ---
+        st.markdown("---")
+        conn = sqlite3.connect('agri_khata.db')
+        df_ledger = pd.read_sql_query(f"SELECT * FROM ledger WHERE user_key = '{st.session_state.username}'", conn)
+        conn.close()
 
-if tab == " 🏠  Dashboard":
-    st.title(f" 👨‍🌾  Command Center: {u_name}")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Temperature", f"{st.session_state.get('temp', 25)}°C")
-    c2.metric("Humidity", f"{st.session_state.get('hum', 50)}%")
-    c3.metric("Location Status", f"{dt_loc}")
+        if not df_ledger.empty:
+            income = df_ledger[df_ledger['type'].str.contains('Income')]['total'].sum()
+            expense = df_ledger[df_ledger['type'].str.contains('Expense')]['total'].sum()
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Total Revenue", f"₹{income:,.2f}")
+            m2.metric("Investment", f"₹{expense:,.2f}")
+            m3.metric("Net Profit", f"₹{income - expense:,.2f}")
+            st.dataframe(df_ledger.drop(columns=['id', 'user_key']), use_container_width=True)
+        else:
+            st.info("No records found. Use the form below to start your ledger.")
 
-elif tab == " 🌾  Crop Engine":
-    st.title("AgriAI Smart Recommendations")
-    df, le_encoder = get_agri_dataframe()
-    soil_opts = ["Alluvial", "Black Soil", "Red Soil", "Sandy"]
-    s_cols = st.columns(4)
-    if 'soil_pref' not in st.session_state: st.session_state.soil_pref = "Alluvial"
-    for i, s in enumerate(soil_opts):
-        if s_cols[i].button(s): st.session_state.soil_pref = s
-    st.markdown(f"Current Soil: **{st.session_state.soil_pref}**")
-    bud = st.slider("Budget (₹/Acre)", 5000, 50000, 15000)
-    if st.button(" 🚀  FIND BEST CROPS"):
-        recs = recommend_crops(df, le_encoder, st.session_state.soil_pref, bud)
-        for _, row in recs.iterrows():
-            st.markdown(f'<div class="main-card"><h3>{row["Crop Name"]}</h3><p>Cost: ₹{row["Cost per Acre"]}</p></div>', unsafe_allow_html=True)
-
-elif tab == " 🚜  Rental Hub":
-    st.title(f" 🚜  Rental Machinery Desk: {dt_loc}")
-    st.markdown(f'<div class="main-card"><h4>Help Center</h4><p>Location: {dt_loc}</p><a href="tel:18001801551" class="call-btn">📞 Call Govt CHC Helpline</a></div>', unsafe_allow_html=True)
-
-elif tab == " 📚  Knowledge Hub":
-    st.title(" 📚  Crop Resource Library")
-    if all_crops:
-        search = st.selectbox("Search Crop", [c['Crop'] for c in all_crops])
-        item = next(i for i in all_crops if i['Crop'] == search)
-        with st.expander(f" 📖  {item['Crop']}", expanded=True):
-            st.write(f"**Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
-            st.info(f" 💡  {item.get('Pro-Tip', 'No tip available')}")
-
-elif tab == " 📈  Price Trends":
-    st.title(" 📈  Mandi Price Trends")
-    # Dynamic crop choice from initial code
-    if all_crops:
-        crop_to_show = st.selectbox("Select Crop for Trend", [c['Crop'] for c in all_crops])
-        trend_prices = [2100, 2250, 2180, 2300, 2450, 2400]
-        fig = px.line(pd.DataFrame({"Month": ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"], "Price": trend_prices}), 
-                      x="Month", y="Price", markers=True, line_shape="spline", title=f"Trends for {crop_to_show}")
-        fig.update_traces(line_color='#2e7d32')
-        st.plotly_chart(fig, use_container_width=True)
-
-elif tab == " 📒  Agri Khata":
-    st.title(f" 📒  Digital Ledger for {u_name}")
-    
-    # REQUIREMENT: Clear Data at the TOP
-    if st.button("🗑️ Clear My Private Data"):
-        delete_user_data(current_user)
-        st.warning(f"All records for {u_name} (PIN: {u_pin}) have been cleared.")
-        st.rerun()
-    
-    st.markdown("---")
-    
-    conn = sqlite3.connect('agri_khata.db')
-    # Filter strictly by the combined Key
-    df_ledger = pd.read_sql_query(f"SELECT * FROM ledger WHERE user_id = '{current_user}'", conn)
-    conn.close()
-    
-    if not df_ledger.empty:
-        income = df_ledger[df_ledger['type'].str.contains('Income')]['total'].sum()
-        expense = df_ledger[df_ledger['type'].str.contains('Expense')]['total'].sum()
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Revenue", f"₹{income:,.2f}")
-        c2.metric("Investment", f"₹{expense:,.2f}")
-        c3.metric("Profit", f"₹{income - expense:,.2f}")
-        st.dataframe(df_ledger, use_container_width=True)
-    else:
-        st.info(f"No records found for {u_name}. Add an entry below to begin.")
-
-    with st.expander(" ➕  Add Entry"):
-        with st.form("add_form"):
-            t = st.selectbox("Type", ["Income (Sales)", "Expense (Seeds)", "Expense (Labor)"])
-            item_name = st.text_input("Item")
-            amt = st.number_input("Amount (₹)", min_value=0)
-            szn = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
-            if st.form_submit_button("Save"):
-                add_entry(current_user, t, item_name, "1", amt, szn)
-                st.success("Entry Saved Privately!")
-                st.rerun()
+        with st.expander("➕ Add Transaction"):
+            with st.form("ledger_form"):
+                t = st.selectbox("Transaction Type", ["Income (Sales)", "Expense (Seeds/Fertilizer)", "Expense (Labor)"])
+                item = st.text_input("Item Name")
+                amt = st.number_input("Amount (₹)", min_value=0)
+                szn = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
+                if st.form_submit_button("Save to Ledger"):
+                    conn = sqlite3.connect('agri_khata.db')
+                    c = conn.cursor()
+                    dt = datetime.now().strftime("%Y-%m-%d")
+                    c.execute("INSERT INTO ledger (user_key, date, type, item, qty, total, season) VALUES (?,?,?,?,?,?,?)",
+                              (st.session_state.username, dt, t, item, "1", amt, szn))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
