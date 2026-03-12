@@ -15,20 +15,28 @@ try:
 except ImportError:
     st.error("Locations.py not found!")
     india_map = {"Bihar": ["Patna"]}
+
 try:
     from crop_master import all_crops
 except ImportError:
     all_crops = []
 
-# --- 1. DATABASE SETUP (PRESERVED & UPDATED FOR PRIVACY) ---
+# --- 1. DATABASE SETUP (USER PRIVACY & MIGRATION) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
-    # Added user_id to separate data between different users
+    # Ensure the table exists with the user_id column
     c.execute('''CREATE TABLE IF NOT EXISTS ledger 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   user_id TEXT,
                   date TEXT, type TEXT, item TEXT, qty TEXT, total REAL, season TEXT)''')
+    
+    # Fix for existing databases: check if user_id column is present
+    try:
+        c.execute("SELECT user_id FROM ledger LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE ledger ADD COLUMN user_id TEXT DEFAULT 'Guest_0000'")
+        
     conn.commit()
     conn.close()
 
@@ -41,7 +49,7 @@ def add_entry(user_id, entry_type, item, qty, total, season):
     conn.commit()
     conn.close()
 
-def delete_all_data(user_id):
+def delete_user_data(user_id):
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
     c.execute("DELETE FROM ledger WHERE user_id = ?", (user_id,))
@@ -56,24 +64,26 @@ API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
 
 st.markdown("""
 <style>
-.main { background-color: #f0f2f6; }
-.main-card { padding: 25px; border-radius: 12px; background-color: #FFFFFF !important; border: 1px solid #2481CC; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
-.stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; width: 100%; }
+.main-card { padding: 25px; border-radius: 12px; background-color: #FFFFFF !important; border: 1px solid #2481CC; margin-bottom: 20px; }
+.call-btn { background-color: #28a745 !important; color: white !important; padding: 12px; border-radius: 8px; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-top: 10px; }
 [data-testid="stSidebar"] { background-color: #243139 !important; }
 [data-testid="stSidebar"] * { color: #ffffff !important; }
+.stButton>button { border-radius: 8px; background-color: #2e7d32; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (SIGN-IN & NAVIGATION) ---
+# --- 3. SIDEBAR (SECURE LOGIN & NAVIGATION) ---
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=120)
+    st.title("ASES NAVIGATION")
     
-    # 1. EASY SIGN-IN / SIGN-UP
-    st.subheader("👤 Farmer Access")
-    farmer_name = st.text_input("Enter Name to Sign In/Up", value="Guest").strip()
-    if farmer_name == "Guest":
-        st.caption("Sign in with your name to save personal data.")
-
+    # Secure Login Logic
+    st.subheader("👤 Farmer Login")
+    u_name = st.text_input("Name", value="Guest").strip()
+    u_pin = st.text_input("PIN (4 Digits)", value="0000", type="password")
+    # This combination ensures that two 'Aditis' with different PINs don't see the same data
+    current_user = f"{u_name}_{u_pin}" 
+    
     tab = st.radio("SELECT SERVICE", [" 🏠  Dashboard", " 🌾  Crop Engine", " 🚜  Rental Hub", " 📚  Knowledge Hub", " 🏛️  Govt Schemes", " 📈  Price Trends", " 📒  Agri Khata"])
     
     st_loc = st.selectbox("Your State", sorted(india_map.keys()))
@@ -88,16 +98,16 @@ with st.sidebar:
                 st.success("Weather synced!")
                 st.rerun()
         except:
-            st.error("Connection Error")
+            st.error("Weather service unavailable.")
 
 # --- 4. TABS LOGIC ---
 
 if tab == " 🏠  Dashboard":
-    st.title(f" 👨‍🌾  Command Center: {farmer_name}")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Temperature", f"{st.session_state.get('temp', 25)}°C")
-    col2.metric("Humidity", f"{st.session_state.get('hum', 50)}%")
-    col3.metric("Location Status", f"{dt_loc}")
+    st.title(f" 👨‍🌾  Command Center: {u_name}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Temperature", f"{st.session_state.get('temp', 25)}°C")
+    c2.metric("Humidity", f"{st.session_state.get('hum', 50)}%")
+    c3.metric("Location Status", f"{dt_loc}")
 
 elif tab == " 🌾  Crop Engine":
     st.title("AgriAI Smart Recommendations")
@@ -116,43 +126,42 @@ elif tab == " 🌾  Crop Engine":
 
 elif tab == " 🚜  Rental Hub":
     st.title(f" 🚜  Rental Machinery Desk: {dt_loc}")
-    # Original HTML Injection for click-to-call preserved
-    st.markdown(f'<div class="main-card"><h4>Nearby Assistance</h4><p>Contact local centers in {dt_loc}.</p><a href="tel:18001801551" style="text-decoration:none;"><button style="width:100%; padding:10px; background-color:#28a745; color:white; border:none; border-radius:5px; cursor:pointer;">📞 Call Govt CHC Helpline</button></a></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="main-card"><h4>Help Center</h4><p>Location: {dt_loc}</p><a href="tel:18001801551" class="call-btn">📞 Call Govt CHC Helpline</a></div>', unsafe_allow_html=True)
 
 elif tab == " 📚  Knowledge Hub":
     st.title(" 📚  Crop Resource Library")
     if all_crops:
-        search = st.text_input(" 🔍  Search Crop Name:", "").strip()
-        filtered = [c for c in all_crops if search.lower() in c['Crop'].lower()] if search else all_crops
-        st.dataframe(pd.DataFrame(filtered), use_container_width=True)
+        search = st.selectbox("Search Crop", [c['Crop'] for c in all_crops])
+        item = next(i for i in all_crops if i['Crop'] == search)
+        with st.expander(f" 📖  {item['Crop']}", expanded=True):
+            st.write(f"**Season:** {item['Season']} | **NPK:** {item['N-P-K']}")
+            st.info(f" 💡  {item.get('Pro-Tip', 'No tip available')}")
 
 elif tab == " 📈  Price Trends":
     st.title(" 📈  Mandi Price Trends")
-    # Original spline graph logic preserved
-    trend_prices = [2100, 2250, 2180, 2300, 2450, 2400]
-    months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-    fig = px.line(pd.DataFrame({"Month": months, "Price": trend_prices}), x="Month", y="Price", markers=True, line_shape="spline", color_discrete_sequence=["#2e7d32"])
-    st.plotly_chart(fig, use_container_width=True)
+    # Dynamic crop choice from initial code
+    if all_crops:
+        crop_to_show = st.selectbox("Select Crop for Trend", [c['Crop'] for c in all_crops])
+        trend_prices = [2100, 2250, 2180, 2300, 2450, 2400]
+        fig = px.line(pd.DataFrame({"Month": ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"], "Price": trend_prices}), 
+                      x="Month", y="Price", markers=True, line_shape="spline", title=f"Trends for {crop_to_show}")
+        fig.update_traces(line_color='#2e7d32')
+        st.plotly_chart(fig, use_container_width=True)
 
 elif tab == " 📒  Agri Khata":
-    st.title(f" 📒  Digital Ledger: {farmer_name}")
+    st.title(f" 📒  Digital Ledger for {u_name}")
     
-    # 2. CLEAR DATA OPTION AT THE TOP
-    if st.button("⚠️ Clear All My Data", type="secondary"):
-        delete_all_data(farmer_name)
-        st.warning(f"All records for {farmer_name} have been wiped.")
+    # REQUIREMENT: Clear Data at the TOP
+    if st.button("🗑️ Clear My Private Data"):
+        delete_user_data(current_user)
+        st.warning(f"All records for {u_name} (PIN: {u_pin}) have been cleared.")
         st.rerun()
     
     st.markdown("---")
-    filter_season = st.selectbox(" 🔍  Filter Season", ["All Seasons", "Kharif", "Rabi", "Zaid"])
     
     conn = sqlite3.connect('agri_khata.db')
-    # Use user_id to ensure Person A doesn't see Person B's data
-    query = f"SELECT * FROM ledger WHERE user_id = '{farmer_name}'"
-    if filter_season != "All Seasons":
-        query += f" AND season='{filter_season}'"
-    
-    df_ledger = pd.read_sql_query(query, conn)
+    # Filter strictly by the combined Key
+    df_ledger = pd.read_sql_query(f"SELECT * FROM ledger WHERE user_id = '{current_user}'", conn)
     conn.close()
     
     if not df_ledger.empty:
@@ -164,15 +173,15 @@ elif tab == " 📒  Agri Khata":
         c3.metric("Profit", f"₹{income - expense:,.2f}")
         st.dataframe(df_ledger, use_container_width=True)
     else:
-        st.info("No records found for your account.")
+        st.info(f"No records found for {u_name}. Add an entry below to begin.")
 
     with st.expander(" ➕  Add Entry"):
         with st.form("add_form"):
-            e_type = st.selectbox("Type", ["Income (Sales)", "Expense (Seeds)", "Expense (Labor)"])
-            e_item = st.text_input("Item")
-            e_amt = st.number_input("Amount (₹)", min_value=0)
-            e_szn = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
-            if st.form_submit_button("Save Entry"):
-                add_entry(farmer_name, e_type, e_item, "1", e_amt, e_szn)
-                st.success("Saved!")
+            t = st.selectbox("Type", ["Income (Sales)", "Expense (Seeds)", "Expense (Labor)"])
+            item_name = st.text_input("Item")
+            amt = st.number_input("Amount (₹)", min_value=0)
+            szn = st.selectbox("Season", ["Kharif", "Rabi", "Zaid"])
+            if st.form_submit_button("Save"):
+                add_entry(current_user, t, item_name, "1", amt, szn)
+                st.success("Entry Saved Privately!")
                 st.rerun()
