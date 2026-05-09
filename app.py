@@ -168,36 +168,46 @@ else:
         st.info("💡 Tip: Keep your Aadhaar and Land Records ready for application.")
 
     # --- RENTAL HUB (UPDATED WITH MACHINERY.CSV) ---
+       # --- RENTAL HUB ---
     elif menu == "🚜 Rental Hub":
-        st.header("🚜 Local Machine Rentals")
+        st.header("🚜 Machine Rentals")
         category = st.pills("Task", ["Preparation", "Sowing", "Harvesting"])
-        
-        # Define machine mapping for filtering CSV
-        cat_map = {
-            "Preparation": ["Rotavator", "Power Tiller"],
-            "Sowing": ["Seed Drill", "Transplanter"],
-            "Harvesting": ["Harvester", "Thresher"]
+        machines = {
+            "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
+            "Sowing": [("Seed Drill", "🌱"), ("Transplanter", "🌾")],
+            "Harvesting": [("Harvester", "🌾✨"), ("Thresher", "🌪️")]
         }
-        
-        selected_machines = cat_map.get(category or "Preparation", [])
-        
-        # Load and Filter Mock Database
-        df_machinery = pd.read_csv('machinery.csv')
-        local_owners = df_machinery[
-            (df_machinery['Machine'].isin(selected_machines)) & 
-            (df_machinery['District'] == dist_sel)
-        ]
+        for m_name, icon in machines.get(category or "Preparation", []):
+            with st.container(border=True):
+                st.subheader(f"{icon} {m_name}")
+                st.link_button(f"Find in {dist_sel}", f"https://www.google.com/search?q={m_name}+rental+in+{dist_sel}")
+                st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Govt Help</a>', unsafe_allow_html=True)
 
-        if not local_owners.empty:
-            for _, row in local_owners.iterrows():
-                with st.container(border=True):
-                    st.subheader(f"⚙️ {row['Machine']}")
-                    st.write(f"👤 **Owner:** {row['Owner']}")
-                    st.write(f"💰 **Rate:** {row['Rate']}")
-                    st.markdown(f'<a href="tel:{row["Phone"]}" class="call-btn">📞 Call {row["Owner"]}</a>', unsafe_allow_html=True)
-        else:
-            st.warning(f"No local owners found in {dist_sel} for {category}. Showing Govt Help Line.")
-            st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Contact CHC Farm Machinery</a>', unsafe_allow_html=True)
+        # --- MOCK DATABASE OF MACHINERY OWNERS ---
+        st.divider()
+        st.subheader("📋 Local Machinery Owners")
+
+        # Load mock CSV (machinery.csv)
+        try:
+            owners_df = pd.read_csv("machinery.csv")
+            search_q = st.text_input("🔍 Search Owner / Shop")
+            if search_q:
+                owners_df = owners_df[owners_df.apply(lambda row: search_q.lower() in str(row).lower(), axis=1)]
+            st.dataframe(owners_df, use_container_width=True)
+
+            # Click-to-call buttons
+            for _, row in owners_df.iterrows():
+                st.markdown(f'''
+                    <div class="mobile-card">
+                        <b>{row["Owner"]}</b> — {row["Machine"]}
+                        <br>📍 {row["Location"]}
+                        <a href="tel:{row["Phone"]}" class="call-btn">📞 Call {row["Owner"]}</a>
+                        <a href="https://www.google.com/search?q={row["Owner"]}+{row["Location"]}+rental" class="call-btn">🔍 Search Shop</a>
+                    </div>
+                ''', unsafe_allow_html=True)
+        except Exception as e:
+            st.warning("⚠️ Machinery database not found. Please ensure 'machinery.csv' exists.")
+
 
     # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
