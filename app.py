@@ -274,7 +274,7 @@ else:
 
 
     # --- KNOWLEDGE HUB ---
-       # --- KNOWLEDGE HUB ---
+         # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Crop Library")
         
@@ -302,7 +302,7 @@ else:
             st.markdown(f'''
                 <div class="mobile-card">
                     <span class="badge">{item['Type']}</span>
-                    <b>🌱 {item['Crop']}</b><br>
+                    <b>{item['Crop']}</b><br>
                     <small>📍 {item['Season']} | ⏳ {item['Harvesting']}</small>
                 </div>
             ''', unsafe_allow_html=True)
@@ -326,8 +326,16 @@ else:
 
             for item in filtered:
                 pdf.ln(8)
-                pdf.cell(200, 10, txt=f"🌱 {item['Crop']} ({item['Type']})", ln=True)
-                pdf.multi_cell(0, 10, txt=f"Season: {item['Season']}\nHarvesting: {item['Harvesting']}\nSoil: {item['Soil']}\nWater: {item['Water']}\nPest: {item['Pest']}\nTip: {item['Pro-Tip']}")
+                # Removed emojis to avoid Unicode errors
+                pdf.cell(200, 10, txt=f"{item['Crop']} ({item['Type']})", ln=True)
+                pdf.multi_cell(0, 10, txt=(
+                    f"Season: {item['Season']}\n"
+                    f"Harvesting: {item['Harvesting']}\n"
+                    f"Soil: {item['Soil']}\n"
+                    f"Water: {item['Water']}\n"
+                    f"Pest: {item['Pest']}\n"
+                    f"Tip: {item['Pro-Tip']}"
+                ))
 
             pdf.output("crop_info.pdf")
             with open("crop_info.pdf", "rb") as f:
