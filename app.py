@@ -180,7 +180,7 @@ else:
             else: st.warning("Try a higher budget.")
 
     # --- GOVT SCHEMES SECTION ---
-       # --- GOVT SCHEMES SECTION ---
+          # --- GOVT SCHEMES SECTION ---
     elif menu == "🏛️ Govt Schemes":
         st.header(f"🏛️ Schemes for {state_sel}")
 
@@ -193,6 +193,7 @@ else:
             with st.container(border=True):
                 st.markdown(f"### {current_scheme['name']}")
                 st.write(current_scheme['desc'])
+                st.write(f"👤 Eligibility: {current_scheme.get('eligibility', 'General')}")
                 st.link_button(f"Apply on {state_sel} Portal", current_scheme['link'])
         else:
             st.info(f"Looking for specific {state_sel} schemes... Check the Central list below.")
@@ -203,17 +204,20 @@ else:
         st.subheader("🌍 Central Government Schemes")
         central_schemes = get_central_schemes()
 
-        # --- NEW FILTER SYSTEM ---
+        # --- FILTER SYSTEM ---
         st.markdown("### 🎯 Filter Schemes by Farmer Type")
-        farmer_type = st.text_input("Enter Farmer Type (e.g., Small Farmer, Marginal Farmer, Women Farmer)")
+        farmer_type = st.selectbox(
+            "Choose Farmer Category",
+            ["All", "Small Farmer", "Marginal Farmer", "Women Farmer", "Landless Farmer"]
+        )
 
-        if farmer_type:
+        if farmer_type != "All":
             filtered_schemes = [s for s in central_schemes if farmer_type.lower() in s.get("eligibility", "").lower()]
             if filtered_schemes:
                 for scheme in filtered_schemes:
                     with st.expander(f"✨ {scheme['name']}"):
                         st.write(scheme['desc'])
-                        st.write(f"👤 Eligibility: {scheme.get('eligibility', 'General')}")
+                        st.write(f"👤 Eligibility: {scheme['eligibility']}")
                         st.link_button("View Official Website", scheme['link'])
             else:
                 st.warning(f"No schemes found for '{farmer_type}'. Try another category.")
@@ -225,6 +229,7 @@ else:
                     st.link_button("View Official Website", scheme['link'])
 
         st.info("💡 Tip: Keep your Aadhaar and Land Records (Jamabandi/Bhu-Naksha) ready for application.")
+
 
     # --- RENTAL HUB (UPDATED WITH MACHINERY.CSV) ---
        # --- RENTAL HUB ---
