@@ -3,6 +3,7 @@ import pandas as pd
 import sqlite3
 import plotly.express as px
 import requests
+import os
 from datetime import datetime
 
 # --- 1. CONFIGURATION & API ---
@@ -10,7 +11,21 @@ st.set_page_config(page_title="ASES: Agri-Smart", layout="centered", page_icon="
 OGD_API_KEY = "579b464db66ec23bdd0000019b64f520463c4fba468cc24026c3cff6"
 RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 
-# --- 2. MODULAR IMPORTS ---
+# --- 2. MOCK DATA GENERATION (Machinery Owners) ---
+def init_machinery_csv():
+    if not os.path.exists('machinery.csv'):
+        data = {
+            "Owner": ["Rajesh Kumar", "Amit Singh", "Suresh Mehra", "Vikram Jeet", "Priyanka Devi", "Sunil Verma"],
+            "Phone": ["9876543210", "9123456789", "9988776655", "9412345678", "8877665544", "7766554433"],
+            "Machine": ["Rotavator", "Seed Drill", "Harvester", "Power Tiller", "Transplanter", "Thresher"],
+            "District": ["Patna", "Gaya", "Patna", "Gaya", "Patna", "Gaya"],
+            "Rate": ["₹800/hr", "₹500/hr", "₹2500/hr", "₹400/hr", "₹1200/hr", "₹1000/hr"]
+        }
+        pd.DataFrame(data).to_csv('machinery.csv', index=False)
+
+init_machinery_csv()
+
+# --- 3. MODULAR IMPORTS ---
 try:
     from Locations import india_map
     from crop_master import all_crops
@@ -20,7 +35,7 @@ except ImportError:
     india_map = {"Bihar": ["Patna", "Gaya"]}
     all_crops = []
 
-# --- 3. DATABASE (SECURE PER-USER) ---
+# --- 4. DATABASE (SECURE PER-USER) ---
 def init_db():
     conn = sqlite3.connect('agri_khata.db')
     c = conn.cursor()
@@ -33,7 +48,7 @@ def init_db():
 
 init_db()
 
-# --- 4. MOBILE-FRIENDLY CSS ---
+# --- 5. MOBILE-FRIENDLY CSS ---
 st.markdown("""
 <style>
     .stApp { max-width: 800px; margin: 0 auto; }
@@ -56,7 +71,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 5. AUTHENTICATION ---
+# --- 6. AUTHENTICATION ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -86,13 +101,12 @@ if not st.session_state.logged_in:
                 conn.close()
             except: st.error("User exists")
 
-# --- 6. MAIN APP ---
+# --- 7. MAIN APP ---
 else:
     with st.sidebar:
         st.image("https://upload.wikimedia.org/wikipedia/en/5/52/Indian_Institute_of_Technology_Patna_Logo.png", width=80)
         st.write(f"🧑‍🌾 **{st.session_state.username}**")
         
-        # Updated Menu with Govt Schemes
         menu = st.radio("Go to", ["🏠 Dashboard", "🎯 AgriAI Engine", "🏛️ Govt Schemes", "🚜 Rental Hub", "📚 Knowledge Hub", "📉 Price Trends", "📒 Agri Ledger"])
         
         state_sel = st.selectbox("State", sorted(india_map.keys()))
@@ -130,8 +144,6 @@ else:
     # --- GOVT SCHEMES SECTION ---
     elif menu == "🏛️ Govt Schemes":
         st.header(f"🏛️ Schemes for {state_sel}")
-        
-        # 1. Fetch State Specific Scheme
         state_data = get_state_schemes()
         current_scheme = state_data.get(state_sel)
 
@@ -145,8 +157,6 @@ else:
             st.info(f"Looking for specific {state_sel} schemes... Check the Central list below.")
 
         st.divider()
-
-        # 2. Fetch Central Schemes
         st.subheader("🌍 Central Government Schemes")
         central_schemes = get_central_schemes()
         
@@ -155,27 +165,43 @@ else:
                 st.write(scheme['desc'])
                 st.link_button("View Official Website", scheme['link'])
 
-        st.info("💡 Tip: Keep your Aadhaar and Land Records (Jamabandi/Bhu-Naksha) ready for application.")
+        st.info("💡 Tip: Keep your Aadhaar and Land Records ready for application.")
 
-    # --- RENTAL HUB ---
+    # --- RENTAL HUB (UPDATED WITH MACHINERY.CSV) ---
     elif menu == "🚜 Rental Hub":
-        st.header("🚜 Machine Rentals")
+        st.header("🚜 Local Machine Rentals")
         category = st.pills("Task", ["Preparation", "Sowing", "Harvesting"])
-        machines = {
-            "Preparation": [("Rotavator", "🚜"), ("Power Tiller", "⚙️")],
-            "Sowing": [("Seed Drill", "🌱"), ("Transplanter", "🌾")],
-            "Harvesting": [("Harvester", "🌾✨"), ("Thresher", "🌪️")]
+        
+        # Define machine mapping for filtering CSV
+        cat_map = {
+            "Preparation": ["Rotavator", "Power Tiller"],
+            "Sowing": ["Seed Drill", "Transplanter"],
+            "Harvesting": ["Harvester", "Thresher"]
         }
-        for m_name, icon in machines.get(category or "Preparation", []):
-            with st.container(border=True):
-                st.subheader(f"{icon} {m_name}")
-                st.link_button(f"Find in {dist_sel}", f"https://www.google.com/search?q={m_name}+rental+in+{dist_sel}")
-                st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Govt Help</a>', unsafe_allow_html=True)
+        
+        selected_machines = cat_map.get(category or "Preparation", [])
+        
+        # Load and Filter Mock Database
+        df_machinery = pd.read_csv('machinery.csv')
+        local_owners = df_machinery[
+            (df_machinery['Machine'].isin(selected_machines)) & 
+            (df_machinery['District'] == dist_sel)
+        ]
+
+        if not local_owners.empty:
+            for _, row in local_owners.iterrows():
+                with st.container(border=True):
+                    st.subheader(f"⚙️ {row['Machine']}")
+                    st.write(f"👤 **Owner:** {row['Owner']}")
+                    st.write(f"💰 **Rate:** {row['Rate']}")
+                    st.markdown(f'<a href="tel:{row["Phone"]}" class="call-btn">📞 Call {row["Owner"]}</a>', unsafe_allow_html=True)
+        else:
+            st.warning(f"No local owners found in {dist_sel} for {category}. Showing Govt Help Line.")
+            st.markdown(f'<a href="tel:18001801551" class="call-btn">📞 Contact CHC Farm Machinery</a>', unsafe_allow_html=True)
 
     # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Crop Library")
-        
         with st.expander("⚖️ Compare Two Crops"):
             c_names = [c['Crop'] for c in all_crops]
             ca, cb = st.columns(2)
