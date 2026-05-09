@@ -117,12 +117,50 @@ else:
             st.rerun()
 
     # --- DASHBOARD ---
+      # --- DASHBOARD ---
     if menu == "🏠 Dashboard":
         st.header(f"Welcome to {dist_sel}")
-        c1, c2 = st.columns(2)
-        c1.metric("Weather", "28°C")
-        c2.metric("Market", "Open")
+
+        WEATHER_API_KEY = "44ce6d6e018ff31baf4081ed56eb7fb7"
+        # Current weather
+        weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={dist_sel},{state_sel},IN&appid={WEATHER_API_KEY}&units=metric"
+
+        try:
+            w_data = requests.get(weather_url).json()
+            if w_data.get("main"):
+                temp = w_data["main"]["temp"]
+                cond = w_data["weather"][0]["description"].title()
+                hum = w_data["main"]["humidity"]
+
+                c1, c2, c3 = st.columns(3)
+                c1.metric("🌡️ Temp", f"{temp}°C")
+                c2.metric("☁️ Condition", cond)
+                c3.metric("💧 Humidity", f"{hum}%")
+
+                # --- 7-Day Forecast ---
+                lat, lon = w_data["coord"]["lat"], w_data["coord"]["lon"]
+                forecast_url = f"http://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts&appid={WEATHER_API_KEY}&units=metric"
+                f_data = requests.get(forecast_url).json()
+
+                if "daily" in f_data:
+                    days = []
+                    temps = []
+                    for d in f_data["daily"][:7]:
+                        day = datetime.fromtimestamp(d["dt"]).strftime("%a")
+                        days.append(day)
+                        temps.append(d["temp"]["day"])
+                    st.plotly_chart(px.line(x=days, y=temps, markers=True,
+                                            title="🌤️ 7-Day Temperature Forecast"),
+                                    use_container_width=True)
+                else:
+                    st.info("Forecast data not available.")
+            else:
+                st.warning("⚠️ Weather data not available for this location.")
+        except Exception as e:
+            st.error("Weather API connection failed.")
+
         st.info("💡 Check Market Trends for live prices from government mandis.")
+
 
     # --- AGRIAI ENGINE ---
     elif menu == "🎯 AgriAI Engine":
