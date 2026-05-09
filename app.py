@@ -287,25 +287,54 @@ else:
                 st.info(f"💡 **Tip:** {item['Pro-Tip']}")
 
     # --- PRICE TRENDS ---
+      # --- PRICE TRENDS ---
     elif menu == "📉 Price Trends":
         st.header("📈 Live Mandi Prices")
+
+        # Commodity selection
         c_list = [c['Crop'] for c in all_crops] if all_crops else ["Wheat", "Rice"]
         sel_c = st.selectbox("Commodity", c_list)
-        
+
+        # API call for live mandi prices
         url = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
-        p = {"api-key": OGD_API_KEY, "format": "json", "filters[state]": state_sel, "filters[commodity]": sel_c}
-        
+        params = {
+            "api-key": OGD_API_KEY,
+            "format": "json",
+            "filters[state]": state_sel,
+            "filters[commodity]": sel_c
+        }
+
         try:
-            data = requests.get(url, params=p).json()
+            data = requests.get(url, params=params).json()
             if "records" in data and data["records"]:
                 latest = data["records"][0]
                 st.metric(f"Live Price in {latest['market']}", f"₹{latest['modal_price']}")
-            else: st.info("No live data for today. Showing historical trend.")
-        except: st.error("API connection failed.")
-        
-        months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-        vals = [2100, 2050, 2150, 2200, 2300, 2250, 2350, 2400, 2380, 2450, 2500, 2480]
-        st.plotly_chart(px.line(x=months, y=vals, title="Annual Price Cycle"), use_container_width=True)
+
+                # Historical trend from API records
+                hist_df = pd.DataFrame(data["records"])
+                hist_df["date"] = pd.to_datetime(hist_df["arrival_date"], errors="coerce")
+                hist_df = hist_df.dropna(subset=["date"])
+                hist_df = hist_df.sort_values("date")
+
+                if not hist_df.empty:
+                    fig = px.line(
+                        hist_df,
+                        x="date",
+                        y="modal_price",
+                        title=f"📊 {sel_c} Price Trend in {state_sel}",
+                        markers=True
+                    )
+                    fig.update_layout(xaxis_title="Date", yaxis_title="Price (₹)")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No historical data available for this commodity.")
+            else:
+                st.info("No live data for today. Try another commodity or state.")
+        except Exception as e:
+            st.error("⚠️ API connection failed. Please check your internet or API key.")
+
+        st.info("💡 Tip: Use trends to plan selling or buying decisions at mandis.")
+
 
     # --- AGRI LEDGER ---
     elif menu == "📒 Agri Ledger":
