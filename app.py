@@ -274,17 +274,19 @@ else:
 
 
     # --- KNOWLEDGE HUB ---
+       # --- KNOWLEDGE HUB ---
     elif menu == "📚 Knowledge Hub":
         st.header("📚 Crop Library")
+        
         with st.expander("⚖️ Compare Two Crops"):
             c_names = [c['Crop'] for c in all_crops]
             ca, cb = st.columns(2)
             crop_1 = ca.selectbox("Crop 1", c_names, index=0)
             crop_2 = cb.selectbox("Crop 2", c_names, index=1)
-            
+
             d1 = next(i for i in all_crops if i["Crop"] == crop_1)
             d2 = next(i for i in all_crops if i["Crop"] == crop_2)
-            
+
             comp_df = pd.DataFrame({
                 "Feature": ["Type", "Soil", "Season", "Water"],
                 crop_1: [d1['Type'], d1['Soil'], d1['Season'], d1['Water']],
@@ -295,7 +297,7 @@ else:
         st.divider()
         q = st.text_input("🔍 Search Crop (e.g., Wheat, Sandy, Fruit)")
         filtered = [c for c in all_crops if q.lower() in str(c).lower()] if q else all_crops
-        
+
         for item in filtered:
             st.markdown(f'''
                 <div class="mobile-card">
@@ -311,6 +313,26 @@ else:
                 c2.write(f"💧 **Water:** {item['Water']}")
                 c2.write(f"🐛 **Pest:** {item['Pest']}")
                 st.info(f"💡 **Tip:** {item['Pro-Tip']}")
+
+        # --- PDF EXPORT OPTION ---
+        st.divider()
+        st.subheader("📄 Export Crop Information")
+        if st.button("Download as PDF"):
+            from fpdf import FPDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, txt="Crop Information Report", ln=True, align="C")
+
+            for item in filtered:
+                pdf.ln(8)
+                pdf.cell(200, 10, txt=f"🌱 {item['Crop']} ({item['Type']})", ln=True)
+                pdf.multi_cell(0, 10, txt=f"Season: {item['Season']}\nHarvesting: {item['Harvesting']}\nSoil: {item['Soil']}\nWater: {item['Water']}\nPest: {item['Pest']}\nTip: {item['Pro-Tip']}")
+
+            pdf.output("crop_info.pdf")
+            with open("crop_info.pdf", "rb") as f:
+                st.download_button("⬇️ Save PDF", f, file_name="crop_info.pdf", mime="application/pdf")
+
 
     # --- PRICE TRENDS ---
       # --- PRICE TRENDS ---
