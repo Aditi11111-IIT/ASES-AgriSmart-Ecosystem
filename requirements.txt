@@ -1,0 +1,9 @@
+streamlit
+pandas
+fpdf2
+plotly
+numpy
+requests
+Pillow
+fpdf
+scikit-learn

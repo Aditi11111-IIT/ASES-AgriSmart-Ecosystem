@@ -1,0 +1,48 @@
+def get_state_schemes():
+    return {
+        "Andaman & Nicobar": {"name": "UT Agriculture Mission", "link": "https://agri.andaman.gov.in/", "desc": "Subsidies for coconut and organic spices."},
+        "Andhra Pradesh": {"name": "YSR Rythu Bharosa", "link": "https://ysrrythubharosa.ap.gov.in/", "desc": "₹13,500/year assistance for landholders and tenants."},
+        "Arunachal Pradesh": {"name": "Atmanirbhar Krishi Yojana", "link": "https://arqit.arunachal.gov.in/", "desc": "45% subsidy + 45% bank loan for farm machinery."},
+        "Assam": {"name": "Mukhya Mantri Krishi Sa-Sajuli", "link": "https://diragri.assam.gov.in/", "desc": "₹5,000 grant for farm tools and manual equipment."},
+        "Bihar": {"name": "Bihar Rajya Fasal Sahayata Yojana", "link": "https://pacsonline.bih.nic.in/fsy/", "desc": "Free crop assistance for loss; up to ₹10,000 per hectare."},
+        "Chandigarh": {"name": "Paramparagat Krishi Vikas", "link": "https://chandigarh.gov.in/", "desc": "Incentives for urban organic farming and composting."},
+        "Chhattisgarh": {"name": "Rajiv Gandhi Kisan Nyay Yojana", "link": "https://rgkny.cg.nic.in/", "desc": "Input subsidy of ₹9,000/acre for various crops."},
+        "Dadra & Nagar Haveli": {"name": "UT Farmer Support Scheme", "link": "https://ddd.gov.in/", "desc": "Subsidized seeds and fertilizer distribution."},
+        "Delhi": {"name": "PM-Kisan Delhi Portal", "link": "https://delhi.gov.in/", "desc": "Central support for peri-urban vegetable cultivators."},
+        "Goa": {"name": "Shetkari Adhar Nidhi", "link": "https://agri.goa.gov.in/", "desc": "Compensation for crop loss due to wildlife/weather."},
+        "Gujarat": {"name": "Mukhya Mantri Kisan Sahay", "link": "https://ikhedut.gujarat.gov.in/", "desc": "100% premium-free insurance for drought or excess rain."},
+        "Haryana": {"name": "Mera Pani Meri Virasat", "link": "https://ekharid.haryana.gov.in/", "desc": "₹7,000/acre incentive to switch from paddy to pulses."},
+        "Himachal Pradesh": {"name": "Mukhya Mantri Nutan Polyhouse", "link": "https://hpagriculture.nic.in/", "desc": "85% subsidy on high-tech polyhouse construction."},
+        "J&K": {"name": "Apple/Saffron Mission", "link": "https://hortijmu.jk.gov.in/", "desc": "50% subsidy on high-density fruit plantations."},
+        "Jharkhand": {"name": "Jharkhand Rajya Fasal Rahat", "link": "https://jrfry.jharkhand.gov.in/", "desc": "State-backed financial security against crop damage."},
+        "Karnataka": {"name": "Krishi Bhagya", "link": "https://raitamitra.karnataka.gov.in/", "desc": "90% subsidy for farm ponds and micro-irrigation."},
+        "Kerala": {"name": "Subhiksha Keralam", "link": "https://www.aims.kerala.gov.in/", "desc": "Interest-free loans for fallow land cultivation."},
+        "Ladakh": {"name": "Mission Organic Development", "link": "https://ladakh.nic.in/", "desc": "Special incentives for Sea Buckthorn and Apricots."},
+        "Lakshadweep": {"name": "Coconut Development Mission", "link": "https://lakshadweep.gov.in/", "desc": "Training and subsidies for coconut value addition."},
+        "Madhya Pradesh": {"name": "Kisan Kalyan Yojana", "link": "https://saara.mp.gov.in/", "desc": "Additional ₹6,000/year over Central PM-Kisan aid."},
+        "Maharashtra": {"name": "Namo Shetkari Mahasanman", "link": "https://nsmny.mahait.org/", "desc": "Matching ₹6,000/year grant for all farmers."},
+        "Manipur": {"name": "CM’s Agri-Horti Mission", "link": "https://manipur.gov.in/", "desc": "Free seed distribution for hill farmers."},
+        "Meghalaya": {"name": "Mission Lakadong", "link": "https://meghalaya.gov.in/", "desc": "Incentives for high-curcumin turmeric cultivation."},
+        "Mizoram": {"name": "SEDP Agri Component", "link": "https://mizoram.gov.in/", "desc": "Direct aid for sustainable settled farming."},
+        "Nagaland": {"name": "Focus Nagaland", "link": "https://agriculture.nagaland.gov.in/", "desc": "Terrace farming support and Jhum conversion."},
+        "Odisha": {"name": "KALIA Scheme", "link": "https://kalia.odisha.gov.in/", "desc": "Livelihood support for small/landless farmers."},
+        "Puducherry": {"name": "CM Farmer Welfare", "link": "https://agri.py.gov.in/", "desc": "Input grants for the Samba cultivation season."},
+        "Punjab": {"name": "Pani Bachao Paisa Kamao", "link": "https://pspcl.in/", "desc": "Cash rewards for saving electricity on pumps."},
+        "Rajasthan": {"name": "Kisan Mahotsav Subsidies", "link": "https://agriculture.rajasthan.gov.in/", "desc": "Subsidies for solar fencing and drip irrigation."},
+        "Sikkim": {"name": "Sikkim Organic Mission", "link": "https://sikkim.gov.in/", "desc": "Incentives for 100% organic certification."},
+        "Tamil Nadu": {"name": "Uzhavar Pathukappu Thittam", "link": "https://www.tn.gov.in/", "desc": "Social security and educational aid for families."},
+        "Telangana": {"name": "Rythu Bandhu", "link": "https://rythubandhu.telangana.gov.in/", "desc": "₹10,000/acre investment support every year."},
+        "Tripura": {"name": "Mukhya Mantri Fasal Bima", "link": "https://tripura.gov.in/", "desc": "State top-up for crop insurance premiums."},
+        "Uttar Pradesh": {"name": "UP Kisan Uday Yojana", "link": "https://upagriculture.com/", "desc": "Free high-efficiency solar pump sets."},
+        "Uttarakhand": {"name": "Ghasyari Kalyan Yojana", "link": "https://agriculture.uk.gov.in/", "desc": "50% subsidy on compound fodder for livestock."},
+        "West Bengal": {"name": "Krishak Bandhu", "link": "https://krishakbandhu.net/", "desc": "₹10,000/year income aid and life cover."}
+    }
+
+def get_central_schemes():
+    return [
+        {"name": "PM-KISAN", "link": "https://pmkisan.gov.in/", "desc": "Income support of ₹6,000 per year in three installments."},
+        {"name": "Pradhan Mantri Fasal Bima Yojana (PMFBY)", "link": "https://pmfby.gov.in/", "desc": "Insurance coverage and financial support in case of crop failure."},
+        {"name": "PM Krishi Sinchai Yojana", "link": "https://pmksy.gov.in/", "desc": "Per Drop More Crop - focused on water use efficiency."},
+        {"name": "e-NAM", "link": "https://enam.gov.in/", "desc": "National Agriculture Market - online trading for commodities."},
+        {"name": "Soil Health Card Scheme", "link": "https://soilhealth.dac.gov.in/", "desc": "Soil nutrient monitoring and fertilizer advice."}
+    ]
